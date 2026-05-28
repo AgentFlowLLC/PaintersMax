@@ -34250,14 +34250,20 @@ __export(db_exports, {
   upsertUser: () => upsertUser
 });
 async function getDb() {
+  console.log("[DB Debug] DATABASE_URL present:", !!process.env.DATABASE_URL);
+  console.log("[DB Debug] DATABASE_URL prefix:", process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 30) + "..." : "MISSING");
   if (!_db && process.env.DATABASE_URL) {
     try {
       const client = src_default(process.env.DATABASE_URL, { ssl: "require" });
       _db = drizzle(client);
+      console.log("[DB Debug] Connected successfully");
     } catch (error46) {
       console.warn("[Database] Failed to connect:", error46);
       _db = null;
     }
+  }
+  if (!_db) {
+    console.warn("[DB Debug] _db is null — DATABASE_URL may be missing or connection failed");
   }
   return _db;
 }
