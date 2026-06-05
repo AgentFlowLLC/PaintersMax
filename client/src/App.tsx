@@ -25,6 +25,7 @@ import BlogEditor from "./pages/BlogEditor";
 import BlogList from "./pages/BlogList";
 import BlogPost from "./pages/BlogPost";
 import AIAssistant from "./pages/AIAssistant";
+import Templates from "./pages/Templates";
 import Login from "./pages/Login";
 import Landing from "./pages/Landing";
 import Signup from "./pages/Signup";
@@ -58,6 +59,7 @@ function Router() {
             <Route path="/communications" component={Communications} />
             <Route path="/invoices" component={Invoices} />
             <Route path="/ai-assistant" component={AIAssistant} />
+            <Route path="/templates" component={Templates} />
             <Route path="/docs" component={Docs} />
             <Route path="/settings" component={Settings} />
             <Route path="/404" component={NotFound} />
