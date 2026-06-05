@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
+import { pdf, PDFViewer } from "@react-pdf/renderer";
 import ParkingLotFlyer from "@/components/templates/ParkingLotFlyer";
 import { useBranding } from "@/contexts/BrandingContext";
+import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,24 +15,67 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Download } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Templates() {
-  const { branding, isLoading } = useBranding();
+  const { branding, isLoading: brandingLoading } = useBranding();
 
   const [companyName, setCompanyName] = useState(branding.businessName);
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#D4A017");
+  const [isDownloading, setIsDownloading] = useState(false);
 
-  // Sync once branding resolves from the server
+  // Load saved brand kit from the server
+  const { data: brandKit } = trpc.brandKit.get.useQuery();
+  const saveMutation = trpc.brandKit.save.useMutation({
+    onError: (err) => toast.error(`Failed to save brand kit: ${err.message}`),
+  });
+
+  // Populate form: prefer persisted brand-kit values, fall back to branding context
   useEffect(() => {
-    if (!isLoading) {
+    if (brandKit) {
+      setCompanyName(brandKit.companyName ?? branding.businessName);
+      setPhone(brandKit.phone ?? "");
+      setEmail(brandKit.companyEmail ?? "");
+      setWebsite(brandKit.website ?? "");
+      if (brandKit.primaryColor) setPrimaryColor(brandKit.primaryColor);
+    } else if (!brandingLoading) {
       setCompanyName((prev) => prev || branding.businessName);
     }
-  }, [isLoading, branding.businessName]);
+  }, [brandKit, brandingLoading, branding.businessName]);
 
   const flyerProps = { companyName, phone, email, website, primaryColor };
+
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    try {
+      // Persist before generating so the data is never lost
+      await saveMutation.mutateAsync({
+        companyName,
+        companyEmail: email,
+        phone,
+        website,
+        primaryColor,
+      });
+
+      const blob = await pdf(<ParkingLotFlyer {...flyerProps} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${companyName || "flyer"}-parking-lot-flyer.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Brand kit saved and PDF downloaded.");
+    } catch {
+      // saveMutation.onError already shows a toast for save failures;
+      // catch here prevents an unhandled rejection if pdf() itself throws
+      toast.error("Could not generate PDF. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -50,7 +94,8 @@ export default function Templates() {
           <CardHeader>
             <CardTitle className="text-base">Parking Lot Flyer</CardTitle>
             <CardDescription>
-              Fill in your brand details — the preview updates live.
+              Fill in your brand details — the preview updates live. Brand kit
+              is saved automatically when you download.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -120,17 +165,14 @@ export default function Templates() {
 
             <Separator />
 
-            <PDFDownloadLink
-              document={<ParkingLotFlyer {...flyerProps} />}
-              fileName={`${companyName || "flyer"}-parking-lot-flyer.pdf`}
+            <Button
+              className="w-full"
+              disabled={isDownloading}
+              onClick={handleDownload}
             >
-              {({ loading }) => (
-                <Button className="w-full" disabled={loading}>
-                  <Download className="w-4 h-4 mr-2" />
-                  {loading ? "Generating PDF…" : "Download PDF"}
-                </Button>
-              )}
-            </PDFDownloadLink>
+              <Download className="w-4 h-4 mr-2" />
+              {isDownloading ? "Saving & Generating…" : "Download PDF"}
+            </Button>
           </CardContent>
         </Card>
 
