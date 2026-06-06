@@ -16,8 +16,22 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Download } from "lucide-react";
 import { toast } from "sonner";
+import { useSubscription } from "@/hooks/useSubscription";
+import { UpgradePrompt } from "@/components/UpgradePrompt";
 
 export default function Templates() {
+  const { canAccess } = useSubscription();
+
+  // Feature gate: Marketing/Templates requires 'professional' tier
+  if (!canAccess("professional")) {
+    return (
+      <UpgradePrompt
+        requiredTier="professional"
+        featureName="Marketing Templates"
+        description="Access all marketing templates including flyers, door hangers, and branded materials to grow your painting business."
+      />
+    );
+  }
   const { branding, isLoading: brandingLoading } = useBranding();
 
   const [companyName, setCompanyName] = useState(branding.businessName);

@@ -38,11 +38,20 @@
 import type { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { getDb } from "../db";
-import { invoices, leads, communicationLog, appSettings } from "../../drizzle/schema";
+import { invoices, leads, communicationLog, appSettings, users } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { ENV } from "../_core/env";
 import { sendEmail } from "../lib/email";
 import { sendSMS } from "../lib/sms";
+
+// Map Stripe price IDs to tier names for subscription events
+function getPriceToTierMap(): Record<string, string> {
+  return {
+    [ENV.stripeTier1PriceId]: "starter",
+    [ENV.stripeTier2PriceId]: "professional",
+    [ENV.stripeTier3PriceId]: "agency",
+  };
+}
 
 // ─── Stripe client (lazy — only instantiated when secret key is present) ──────
 
@@ -222,6 +231,47 @@ async function markPaidAndUpdateLead(
 async function handleCheckoutSessionCompleted(
   session: Stripe.Checkout.Session
 ): Promise<{ processed: boolean; reason?: string }> {
+  // ── Handle subscription checkout sessions ──────────────────────────────────
+  if (session.mode === "subscription" && session.metadata?.painter_id) {
+    const painterId = session.metadata.painter_id;
+    const tier = session.metadata.tier || "starter";
+    const subscriptionId = session.subscription as string;
+
+    const db = await getDb();
+    if (db) {
+      const updateData: Record<string, unknown> = {
+        stripeCustomerId: session.customer as string,
+        stripeSubscriptionId: subscriptionId,
+        subscriptionTier: tier,
+        subscriptionStatus: "active",
+      };
+
+      // Check for trial period
+      if (subscriptionId) {
+        try {
+          const stripe = getStripeClient();
+          if (stripe) {
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            if (subscription.trial_end) {
+              updateData.trialEndsAt = new Date(subscription.trial_end * 1000);
+            }
+          }
+        } catch (subErr) {
+          console.warn("[Stripe Webhook] Failed to retrieve subscription for trial info:", (subErr as Error).message);
+        }
+      }
+
+      await db
+        .update(users)
+        .set(updateData)
+        .where(eq(users.id, Number(painterId)));
+
+      console.log(`[Stripe Webhook] Subscription checkout completed — painter ${painterId} → tier: ${tier}`);
+    }
+    return { processed: true };
+  }
+
+  // ── Handle one-time payment checkout sessions (invoices) ────────────────────
   if (session.payment_status !== "paid") {
     return { processed: false, reason: `payment_status is '${session.payment_status}', not 'paid'` };
   }
@@ -385,6 +435,103 @@ async function handlePaymentIntentPaymentFailed(
   return { processed: true };
 }
 
+// ─── Subscription event handlers ──────────────────────────────────────────────
+
+async function handleSubscriptionUpdated(
+  subscription: Stripe.Subscription
+): Promise<void> {
+  const painterId = subscription.metadata?.painter_id;
+  if (!painterId) {
+    console.log("[Stripe Webhook] subscription.updated — no painter_id in metadata");
+    return;
+  }
+
+  const db = await getDb();
+  if (!db) return;
+
+  const priceToTier = getPriceToTierMap();
+  const priceId = subscription.items.data[0]?.price?.id;
+  const tier = priceToTier[priceId || ""] || "free";
+  const status =
+    subscription.status === "active" || subscription.status === "trialing"
+      ? "active"
+      : subscription.status === "past_due"
+      ? "past_due"
+      : "inactive";
+
+  await db
+    .update(users)
+    .set({
+      subscriptionTier: tier,
+      subscriptionStatus: status,
+      stripeSubscriptionId: subscription.id,
+      trialEndsAt: subscription.trial_end
+        ? new Date(subscription.trial_end * 1000)
+        : null,
+    })
+    .where(eq(users.id, Number(painterId)));
+
+  console.log(
+    `[Stripe Webhook] subscription.updated — painter ${painterId} → tier: ${tier}, status: ${status}`
+  );
+}
+
+async function handleSubscriptionDeleted(
+  subscription: Stripe.Subscription
+): Promise<void> {
+  const painterId = subscription.metadata?.painter_id;
+  if (!painterId) {
+    console.log("[Stripe Webhook] subscription.deleted — no painter_id in metadata");
+    return;
+  }
+
+  const db = await getDb();
+  if (!db) return;
+
+  await db
+    .update(users)
+    .set({
+      subscriptionTier: "free",
+      subscriptionStatus: "inactive",
+      stripeSubscriptionId: null,
+      trialEndsAt: null,
+    })
+    .where(eq(users.id, Number(painterId)));
+
+  console.log(
+    `[Stripe Webhook] subscription.deleted — painter ${painterId} → free/inactive`
+  );
+}
+
+async function handleInvoicePaymentFailed(
+  invoice: Stripe.Invoice
+): Promise<void> {
+  const customerId = invoice.customer as string;
+  if (!customerId) return;
+
+  const db = await getDb();
+  if (!db) return;
+
+  // Find the painter by stripe_customer_id
+  const userRows = await db
+    .select()
+    .from(users)
+    .where(eq(users.stripeCustomerId, customerId))
+    .limit(1);
+
+  const user = userRows[0];
+  if (user) {
+    await db
+      .update(users)
+      .set({ subscriptionStatus: "past_due" })
+      .where(eq(users.id, user.id));
+
+    console.log(
+      `[Stripe Webhook] invoice.payment_failed — painter ${user.id} → past_due`
+    );
+  }
+}
+
 // ─── Express route registration ───────────────────────────────────────────────
 
 /**
@@ -481,6 +628,13 @@ export function registerStripeWebhook(app: Express): void {
           if (!result.processed) {
             console.log(`[Stripe Webhook] payment_intent.payment_failed not processed: ${result.reason}`);
           }
+        } else if (event.type === "customer.subscription.updated") {
+          await handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        } else if (event.type === "customer.subscription.deleted") {
+          await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+        } else if (event.type === "invoice.payment_failed") {
+          // Handle subscription invoice payment failures
+          await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
         } else {
           console.log(`[Stripe Webhook] Ignoring unhandled event type: ${event.type}`);
         }

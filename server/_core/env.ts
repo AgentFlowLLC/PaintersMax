@@ -14,6 +14,13 @@ export const ENV = {
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? "",
   // Stripe webhook signing secret — used to verify incoming webhook payloads
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
+  // Stripe subscription tier price IDs
+  stripeTier1PriceId: process.env.STRIPE_TIER1_PRICE_ID ?? "",
+  stripeTier2PriceId: process.env.STRIPE_TIER2_PRICE_ID ?? "",
+  stripeTier3PriceId: process.env.STRIPE_TIER3_PRICE_ID ?? "",
+  // Supabase
+  supabaseUrl: process.env.SUPABASE_URL ?? "",
+  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
   // Twilio — for future SMS integration
   twilioAccountSid: process.env.TWILIO_ACCOUNT_SID ?? "",
   twilioAuthToken: process.env.TWILIO_AUTH_TOKEN ?? "",

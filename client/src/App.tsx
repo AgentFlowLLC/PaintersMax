@@ -26,6 +26,7 @@ import BlogList from "./pages/BlogList";
 import BlogPost from "./pages/BlogPost";
 import AIAssistant from "./pages/AIAssistant";
 import Templates from "./pages/Templates";
+import Pricing from "./pages/Pricing";
 import Login from "./pages/Login";
 import Landing from "./pages/Landing";
 import Signup from "./pages/Signup";
@@ -60,6 +61,7 @@ function Router() {
             <Route path="/invoices" component={Invoices} />
             <Route path="/ai-assistant" component={AIAssistant} />
             <Route path="/templates" component={Templates} />
+            <Route path="/pricing" component={Pricing} />
             <Route path="/docs" component={Docs} />
             <Route path="/settings" component={Settings} />
             <Route path="/404" component={NotFound} />

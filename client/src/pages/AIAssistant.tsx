@@ -8,6 +8,8 @@ import { Sparkles, Send, RotateCcw, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useIndustry } from "@/contexts/IndustryContext";
+import { useSubscription } from "@/hooks/useSubscription";
+import { UpgradePrompt } from "@/components/UpgradePrompt";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -102,6 +104,19 @@ function CopyButton({ text }: { text: string }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AIAssistant() {
+  const { canAccess } = useSubscription();
+
+  // Feature gate: AI features require 'agency' tier
+  if (!canAccess("agency")) {
+    return (
+      <UpgradePrompt
+        requiredTier="agency"
+        featureName="AI Assistant"
+        description="Get AI-powered help drafting estimates, follow-up messages, and marketing content tailored to your painting business."
+      />
+    );
+  }
+
   const { user } = useAuth();
   const { industryName, aiSuggestedPrompts, jobTerminology, customerTerminology } = useIndustry();
   const SUGGESTED_PROMPTS = aiSuggestedPrompts;

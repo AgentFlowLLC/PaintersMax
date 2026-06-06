@@ -18,6 +18,7 @@ import { crewRouter } from "./routers/crew";
 import { blogRouter } from "./routers/blog";
 import { aiRouter } from "./routers/ai";
 import { brandKitRouter } from "./routers/brandKit";
+import { subscriptionRouter } from "./routers/subscription";
 import { seedDefaultTemplates } from "./db";
 import { registerStripeWebhook } from "./routes/stripeWebhook";
 import { markOverdueInvoices } from "./routers/invoices";
@@ -95,6 +96,7 @@ export const appRouter = router({
   blog: blogRouter,
   ai: aiRouter,
   brandKit: brandKitRouter,
+  subscription: subscriptionRouter,
 });
 
 export type AppRouter = typeof appRouter;

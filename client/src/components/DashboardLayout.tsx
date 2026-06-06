@@ -24,7 +24,7 @@ import {
 import { useIsMobile } from "@/hooks/useMobile";
 import { useBranding } from "@/contexts/BrandingContext";
 import { useIndustry } from "@/contexts/IndustryContext";
-import { BarChart3, BookOpen, CalendarDays, FileText, HardHat, LayoutDashboard, LayoutTemplate, LogOut, Mail, MessageSquare, PanelLeft, Receipt, Settings, Sparkles, Users } from "lucide-react";
+import { BarChart3, BookOpen, CalendarDays, CreditCard, FileText, HardHat, LayoutDashboard, LayoutTemplate, LogOut, Mail, MessageSquare, PanelLeft, Receipt, Settings, Sparkles, Users } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -69,6 +69,7 @@ function useMenuItems() {
     { icon: FileText, label: "Blog / Articles", path: "/blog-manage" },
     { icon: Sparkles, label: "AI Assistant", path: "/ai-assistant" },
     { icon: LayoutTemplate, label: "Templates", path: "/templates" },
+    { icon: CreditCard, label: "Pricing & Plans", path: "/pricing" },
     { icon: BookOpen, label: "Documentation", path: "/docs" },
     { icon: Settings, label: "Settings", path: "/settings" },
   ];
