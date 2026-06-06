@@ -19,6 +19,7 @@ import { registerStripeWebhook } from "../server/routers";
 import { registerEmailPasswordAuthRoutes } from "../server/routes/emailPasswordAuth";
 import publicStatsRouter from '../server/routes/publicStats';
 import demoRequestRouter from '../server/routes/demoRequest';
+import { registerOnboardingRoutes } from '../server/routes/onboarding';
 
 const app = express();
 
@@ -42,6 +43,9 @@ registerSmsWebhook(app);
 // Public stats endpoint (no auth required)
 app.use('/api/public', publicStatsRouter);
 app.use('/api/public', demoRequestRouter);
+
+// Onboarding routes (authenticated)
+registerOnboardingRoutes(app);
 
 // tRPC API
 app.use(

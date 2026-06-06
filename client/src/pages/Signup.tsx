@@ -206,7 +206,8 @@ export default function Signup() {
       }
       setAuthToken(data.token);
       await utils.auth.me.invalidate();
-      setStep(4);
+      // Redirect new users to the onboarding flow
+      setLocation("/onboarding");
     } catch {
       setError("Network error. Please check your connection and try again.");
     } finally {
