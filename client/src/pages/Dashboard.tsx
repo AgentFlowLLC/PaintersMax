@@ -22,6 +22,7 @@ import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import { useBranding } from "@/contexts/BrandingContext";
+import { ProfileCompletion } from "@/components/ProfileCompletion";
 import {
   LineChart,
   Line,
@@ -141,6 +142,9 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 pb-8">
+      {/* Profile Completion Widget */}
+      <ProfileCompletion />
+
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

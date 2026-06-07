@@ -92,6 +92,8 @@ async function upsertPainterProfile(userId: number, data: Record<string, unknown
         primary_color     = ${(data.primary_color as string) ?? null},
         secondary_color   = ${(data.secondary_color as string) ?? null},
         tagline           = ${(data.tagline as string) ?? null},
+        chatbot_name      = ${(data.chatbot_name as string) ?? null},
+        chatbot_avatar    = ${(data.chatbot_avatar as string) ?? null},
         updated_at        = now()
       WHERE user_id = ${userId}
     `);
@@ -103,6 +105,7 @@ async function upsertPainterProfile(userId: number, data: Record<string, unknown
         years_in_business, license_number, insurance_carrier,
         service_cities, service_radius, logo_url,
         primary_color, secondary_color, tagline,
+        chatbot_name, chatbot_avatar,
         onboarding_completed, created_at, updated_at
       ) VALUES (
         ${userId},
@@ -120,6 +123,8 @@ async function upsertPainterProfile(userId: number, data: Record<string, unknown
         ${(data.primary_color as string) ?? null},
         ${(data.secondary_color as string) ?? null},
         ${(data.tagline as string) ?? null},
+        ${(data.chatbot_name as string) ?? 'Iris'},
+        ${(data.chatbot_avatar as string) ?? null},
         false,
         now(),
         now()
@@ -137,6 +142,60 @@ async function markOnboardingComplete(userId: number) {
     SET onboarding_completed = true, updated_at = now()
     WHERE user_id = ${userId}
   `);
+}
+
+// ─── Save-Later reminder email ──────────────────────────────────────────────────
+const STEP_NAMES: Record<number, string> = {
+  2: "Business Info",
+  3: "Service Areas",
+  4: "Brand Kit",
+  5: "Choose Plan",
+};
+
+async function sendSaveLaterEmail(
+  businessEmail: string,
+  businessName: string,
+  currentStep: number
+) {
+  const stepName = STEP_NAMES[currentStep] ?? `Step ${currentStep}`;
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; margin: 0; padding: 20px;">
+  <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    <div style="background: #7c3aed; padding: 24px 32px;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 700;">Complete your PaintersMax setup — you're almost there!</h1>
+      <p style="color: #ddd6fe; margin: 6px 0 0; font-size: 14px;">Your progress has been saved.</p>
+    </div>
+    <div style="padding: 32px;">
+      <p style="color: #374151; font-size: 16px; margin: 0 0 16px;">Hi <strong>${businessName || "there"}</strong>,</p>
+      <p style="color: #374151; font-size: 15px; margin: 0 0 20px;">
+        You saved your progress on the PaintersMax setup wizard. You left off on <strong>${stepName}</strong>.
+        Pick up right where you left off — it only takes a few more minutes to complete!
+      </p>
+      <div style="background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 6px; padding: 16px 20px; margin: 20px 0; text-align: center;">
+        <a href="https://paintersmax.app/onboarding"
+           style="display: inline-block; background: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 600; padding: 12px 28px; border-radius: 8px; text-decoration: none;">
+          Continue Setup →
+        </a>
+      </div>
+      <p style="color: #6b7280; font-size: 14px; margin: 16px 0 0;">
+        Once you complete setup, you'll have access to your full dashboard — leads, invoices, scheduling, and your AI chatbot.
+      </p>
+    </div>
+    <div style="background: #f9fafb; padding: 16px 32px; border-top: 1px solid #e5e7eb;">
+      <p style="color: #9ca3af; font-size: 12px; margin: 0;">© PaintersMax — <a href="mailto:support@paintersmax.app" style="color: #9ca3af;">support@paintersmax.app</a></p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  return sendEmail({
+    to: businessEmail,
+    subject: "Complete your PaintersMax setup — you're almost there!",
+    html,
+  });
 }
 
 // ─── Welcome email ────────────────────────────────────────────────────────────
@@ -226,6 +285,8 @@ export function registerOnboardingRoutes(app: Express): void {
         primary_color,
         secondary_color,
         tagline,
+        chatbot_name,
+        chatbot_avatar,
       } = req.body as Record<string, unknown>;
 
       const profile = await upsertPainterProfile(user.id, {
@@ -243,6 +304,8 @@ export function registerOnboardingRoutes(app: Express): void {
         primary_color,
         secondary_color,
         tagline,
+        chatbot_name,
+        chatbot_avatar,
       });
 
       return res.json({ success: true, profile });
@@ -296,6 +359,42 @@ export function registerOnboardingRoutes(app: Express): void {
       return res.json({ success: true, url: uploadedUrl });
     } catch (err) {
       console.error("[Onboarding] upload-logo error:", err);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  /**
+   * POST /api/onboarding/save-later
+   * Body: { business_email: string, company_name: string, current_step: number }
+   * Sends a reminder email so the user can return to finish onboarding.
+   * Returns: { success: true }
+   */
+  app.post("/api/onboarding/save-later", async (req: Request, res: Response) => {
+    try {
+      const user = await getAuthenticatedUser(req);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+      const { business_email, company_name, current_step } = req.body as {
+        business_email?: string;
+        company_name?: string;
+        current_step?: number;
+      };
+
+      if (business_email) {
+        try {
+          await sendSaveLaterEmail(
+            business_email,
+            company_name || "there",
+            current_step ?? 2
+          );
+        } catch (emailErr) {
+          console.warn("[Onboarding] Save-later email failed (non-fatal):", emailErr);
+        }
+      }
+
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("[Onboarding] save-later error:", err);
       return res.status(500).json({ error: "Internal server error" });
     }
   });
