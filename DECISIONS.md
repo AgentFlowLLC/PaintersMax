@@ -1,0 +1,7 @@
+# Build and TypeScript Fixes
+### Resolving Duplicate Google Maps Declarations
+During the initial build process, running the TypeScript compiler (`pnpm run check`) revealed a strict type-checking error: `error TS2687: All declarations of 'google' must have identical modifiers.` This error was caused by a conflict between two files that both attempted to extend the global `Window` interface with the Google Maps object.
+In `client/src/components/Map.tsx`, the `google` property was correctly declared as optional using `google?: typeof google;`. However, in `client/src/pages/Onboarding.tsx`, it was declared as required using `google: typeof google;`. To resolve this discrepancy, I updated the declaration in `Onboarding.tsx` to match the optional modifier used in `Map.tsx`. After applying this fix, the TypeScript compiler passed cleanly without any errors.
+### Addressing Build Warnings
+The production build process (`pnpm run build`) completed successfully but emitted a few non-critical warnings. Vite flagged that `%VITE_ANALYTICS_ENDPOINT%` and `%VITE_ANALYTICS_WEBSITE_ID%` were not defined in the environment variables, which is expected in a local development or CI environment without analytics configured. 
+Additionally, there was a minor CSS warning regarding an `@import` rule for Google Fonts not preceding all other rules, which is a common artifact of Tailwind CSS processing. Since these warnings do not impact the application's functionality or prevent a successful build, they were documented but left as is to prioritize the core structural fixes.

@@ -326,7 +326,7 @@ async function uploadLogo(file: File): Promise<string | null> {
 // ─── Google Places Autocomplete Hook ─────────────────────────────────────────
 declare global {
   interface Window {
-    google: typeof google;
+    google?: typeof google;
     initGooglePlaces?: () => void;
   }
 }
