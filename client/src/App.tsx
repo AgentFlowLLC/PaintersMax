@@ -1,7 +1,8 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, useLocation } from "wouter";
+import { useEffect } from "react";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { BrandingProvider } from "./contexts/BrandingContext";
@@ -31,7 +32,13 @@ import Login from "./pages/Login";
 import Landing from "./pages/Landing";
 import Signup from "./pages/Signup";
 import Contact from "./pages/Contact";
-import Onboarding from "./pages/Onboarding";
+
+// Any stray /onboarding links redirect to the merged signup flow.
+function OnboardingRedirect() {
+  const [, navigate] = useLocation();
+  useEffect(() => { navigate("/signup", { replace: true }); }, [navigate]);
+  return null;
+}
 
 function Router() {
   return (
@@ -41,7 +48,7 @@ function Router() {
       <Route path="/signup" component={Signup} />
       <Route path="/login" component={Login} />
       <Route path="/contact" component={Contact} />
-      <Route path="/onboarding" component={Onboarding} />
+      <Route path="/onboarding" component={OnboardingRedirect} />
       <Route path="/portal/:token" component={CustomerPortal} />
       <Route path="/blog" component={BlogList} />
       <Route path="/blog/:slug" component={BlogPost} />

@@ -14,7 +14,7 @@ import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { getDb } from "../db";
 import { users, appSettings } from "../../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { ENV } from "../_core/env";
 import { sendEmail } from "../lib/email";
 
@@ -117,7 +117,8 @@ export function registerEmailPasswordAuthRoutes(app: Express): void {
 
   /**
    * POST /api/auth/register
-   * Body: { businessName, ownerName, email, password, phone?, city?, state?, website?, hearAboutUs?, plan? }
+   * Body: { email, password, businessName?, ownerName?, phone?, city?, state?, website?, hearAboutUs?, plan? }
+   * businessName and ownerName are optional — the new signup flow collects them in Step 2.
    * Returns: { success: true, token, user: { id, email, businessName } }
    */
   app.post("/api/auth/register", async (req: Request, res: Response) => {
@@ -147,8 +148,6 @@ export function registerEmailPasswordAuthRoutes(app: Express): void {
       };
 
       // ── Validation ────────────────────────────────────────────────────────────
-      if (!businessName?.trim()) return res.status(400).json({ error: "Business name is required" });
-      if (!ownerName?.trim()) return res.status(400).json({ error: "Owner name is required" });
       if (!email?.trim()) return res.status(400).json({ error: "Email is required" });
       if (!password || password.length < 8) return res.status(400).json({ error: "Password must be at least 8 characters" });
 
@@ -175,7 +174,7 @@ export function registerEmailPasswordAuthRoutes(app: Express): void {
         .insert(users)
         .values({
           openId,
-          name: ownerName.trim(),
+          name: ownerName?.trim() || null,
           email: normalizedEmail,
           passwordHash,
           loginMethod: "email-password",
@@ -186,12 +185,12 @@ export function registerEmailPasswordAuthRoutes(app: Express): void {
 
       if (!newUser) return res.status(500).json({ error: "Failed to create account" });
 
-      // ── Seed app_settings with all business info ──────────────────────────────
+      // ── Seed app_settings with business info (businessName/ownerName optional) ─
       try {
         await db.insert(appSettings).values({
           tenantId: newUser.id,
-          businessName: businessName.trim(),
-          ownerName: ownerName.trim(),
+          businessName: businessName?.trim() || null,
+          ownerName: ownerName?.trim() || null,
           companyEmail: normalizedEmail,
           phone: phone?.trim() || null,
           city: city?.trim() || null,
@@ -203,8 +202,26 @@ export function registerEmailPasswordAuthRoutes(app: Express): void {
         console.warn("[Register] Failed to seed app_settings:", (settingsErr as Error).message);
       }
 
+      // ── Create painter_profiles stub so signup_step tracking starts at 1 ─────
+      try {
+        await db.execute(sql`
+          INSERT INTO painter_profiles (
+            user_id, company_name, phone, business_email, address,
+            signup_step, signup_updated_at,
+            onboarding_completed, service_cities, created_at, updated_at
+          ) VALUES (
+            ${newUser.id}, '', '', '', '',
+            1, now(),
+            false, '[]'::jsonb, now(), now()
+          )
+        `);
+      } catch (profileErr) {
+        console.warn("[Register] Failed to create painter_profiles stub:", (profileErr as Error).message);
+      }
+
+      const displayName = businessName?.trim() || normalizedEmail;
       console.log(
-        `[Register] New account: ${businessName} (${normalizedEmail})` +
+        `[Register] New account: ${displayName} (${normalizedEmail})` +
         (phone ? ` | Phone: ${phone}` : "") +
         (city && state ? ` | ${city}, ${state}` : "") +
         (plan ? ` | Plan: ${plan}` : "") +
@@ -221,17 +238,13 @@ export function registerEmailPasswordAuthRoutes(app: Express): void {
               <div style="text-align: center; margin-bottom: 32px;">
                 <h1 style="color: #1d4ed8; font-size: 28px; margin: 0;">Welcome to PaintersMax! 🎉</h1>
               </div>
-              <p style="font-size: 16px; color: #374151;">Hi <strong>${ownerName.trim()}</strong>,</p>
+              <p style="font-size: 16px; color: #374151;">Hi there,</p>
               <p style="font-size: 16px; color: #374151;">
-                Your account for <strong>${businessName.trim()}</strong> is ready. You now have full access to
-                your PaintersMax dashboard — leads, invoicing, scheduling, SMS automation, and more.
+                Your PaintersMax account is created. Continue setting up your business profile to unlock your full dashboard.
               </p>
               <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 24px 0;">
                 <p style="margin: 0; font-size: 14px; color: #6b7280;">Account details</p>
-                <p style="margin: 4px 0 0; font-size: 15px; color: #111827;"><strong>Business:</strong> ${businessName.trim()}</p>
-                <p style="margin: 4px 0 0; font-size: 15px; color: #111827;"><strong>Owner:</strong> ${ownerName.trim()}</p>
                 <p style="margin: 4px 0 0; font-size: 15px; color: #111827;"><strong>Email:</strong> ${normalizedEmail}</p>
-                ${plan ? `<p style="margin: 4px 0 0; font-size: 15px; color: #111827;"><strong>Plan:</strong> ${plan}</p>` : ""}
               </div>
               <div style="text-align: center; margin: 32px 0;">
                 <a href="https://paintersmax.app/login"
@@ -259,7 +272,7 @@ export function registerEmailPasswordAuthRoutes(app: Express): void {
         user: {
           id: newUser.id,
           email: newUser.email,
-          businessName: businessName.trim(),
+          businessName: businessName?.trim() || null,
         },
       });
     } catch (err) {
