@@ -110,5 +110,8 @@ temp/
 # Webdev artifacts (checkpoint zips, migrations, etc.)
 .webdev/
 
-# Manus version file (auto-generated, not part of source)
-client/public/__manus__/version.json
+113 # Manus version file (auto-generated, not part of source)
+114 client/public/__manus__/version.json
+115
+116 # Local planning docs (confidential, not part of repo)
+117 PaintersMax-Signup-Flow-Architecture.md
