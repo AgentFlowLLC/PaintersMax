@@ -13,6 +13,7 @@ import { registerEmailPasswordAuthRoutes } from "../routes/emailPasswordAuth";
 import { corsMiddleware } from "../routes/cors";
 import { registerPublicLeadsRoute } from "../routes/publicLeads";
 import demoRequestRouter from "../routes/demoRequest";
+import { registerOnboardingRoutes } from "../routes/onboarding";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -52,6 +53,8 @@ async function startServer() {
   app.use("/api/public", demoRequestRouter);
   // Email/password auth endpoints: POST /api/auth/login, POST /api/auth/logout
   registerEmailPasswordAuthRoutes(app);
+  // Onboarding / signup profile save routes
+  registerOnboardingRoutes(app);
   // OAuth callback under /api/oauth/callback (kept for backward compatibility)
   registerOAuthRoutes(app);
   // Twilio inbound SMS webhook — must be before tRPC so it handles raw form bodies
