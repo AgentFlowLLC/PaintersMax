@@ -74,15 +74,16 @@ async function upsertPainterProfile(userId: number, data: Record<string, unknown
   const db = await getDb();
   if (!db) return null;
   const existing = await getPainterProfile(userId);
+  const signupStep = (data.signup_step as number) ?? null;
   if (existing) {
-    // UPDATE
+    // UPDATE — only overwrite columns that were actually provided in this call
     await db.execute(sql`
       UPDATE painter_profiles SET
-        company_name      = ${(data.company_name as string) ?? null},
-        phone             = ${(data.phone as string) ?? null},
-        business_email    = ${(data.business_email as string) ?? null},
+        company_name      = COALESCE(${(data.company_name as string) ?? null}, company_name),
+        phone             = COALESCE(${(data.phone as string) ?? null}, phone),
+        business_email    = COALESCE(${(data.business_email as string) ?? null}, business_email),
         website           = ${(data.website as string) ?? null},
-        address           = ${(data.address as string) ?? null},
+        address           = COALESCE(${(data.address as string) ?? null}, address),
         years_in_business = ${(data.years_in_business as number) ?? null},
         license_number    = ${(data.license_number as string) ?? null},
         insurance_carrier = ${(data.insurance_carrier as string) ?? null},
@@ -94,11 +95,13 @@ async function upsertPainterProfile(userId: number, data: Record<string, unknown
         tagline           = ${(data.tagline as string) ?? null},
         chatbot_name      = ${(data.chatbot_name as string) ?? null},
         chatbot_avatar    = ${(data.chatbot_avatar as string) ?? null},
+        signup_step       = CASE WHEN ${signupStep}::integer IS NOT NULL THEN ${signupStep}::integer ELSE signup_step END,
+        signup_updated_at = CASE WHEN ${signupStep}::integer IS NOT NULL THEN now() ELSE signup_updated_at END,
         updated_at        = now()
       WHERE user_id = ${userId}
     `);
   } else {
-    // INSERT
+    // INSERT — fallback for users who somehow have no profile row yet
     await db.execute(sql`
       INSERT INTO painter_profiles (
         user_id, company_name, phone, business_email, website, address,
@@ -106,14 +109,15 @@ async function upsertPainterProfile(userId: number, data: Record<string, unknown
         service_cities, service_radius, logo_url,
         primary_color, secondary_color, tagline,
         chatbot_name, chatbot_avatar,
+        signup_step, signup_updated_at,
         onboarding_completed, created_at, updated_at
       ) VALUES (
         ${userId},
-        ${(data.company_name as string) ?? null},
-        ${(data.phone as string) ?? null},
-        ${(data.business_email as string) ?? null},
+        ${(data.company_name as string) ?? ''},
+        ${(data.phone as string) ?? ''},
+        ${(data.business_email as string) ?? ''},
         ${(data.website as string) ?? null},
-        ${(data.address as string) ?? null},
+        ${(data.address as string) ?? ''},
         ${(data.years_in_business as number) ?? null},
         ${(data.license_number as string) ?? null},
         ${(data.insurance_carrier as string) ?? null},
@@ -125,6 +129,8 @@ async function upsertPainterProfile(userId: number, data: Record<string, unknown
         ${(data.tagline as string) ?? null},
         ${(data.chatbot_name as string) ?? 'Iris'},
         ${(data.chatbot_avatar as string) ?? null},
+        ${signupStep ?? 1},
+        now(),
         false,
         now(),
         now()
@@ -287,6 +293,7 @@ export function registerOnboardingRoutes(app: Express): void {
         tagline,
         chatbot_name,
         chatbot_avatar,
+        signup_step,
       } = req.body as Record<string, unknown>;
 
       const profile = await upsertPainterProfile(user.id, {
@@ -306,6 +313,7 @@ export function registerOnboardingRoutes(app: Express): void {
         tagline,
         chatbot_name,
         chatbot_avatar,
+        signup_step,
       });
 
       return res.json({ success: true, profile });
