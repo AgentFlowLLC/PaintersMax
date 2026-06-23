@@ -955,13 +955,15 @@ export default function Signup() {
             {/* TEMPORARY — REPLACE IN CHUNK 2 */}
             {step === 5 && (
               <div className="text-center py-8">
-                <div className="text-6xl mb-4">🎉</div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-3">
-                  You're in{form.companyName ? `, ${form.companyName}` : ""}!
+                  🎉 You're in{form.companyName ? `, ${form.companyName}` : ""}! Your dashboard is ready — let's take a look.
                 </h2>
-                <p className="text-gray-600 max-w-sm mx-auto">
-                  We're finishing the rest of your setup — we'll email you the moment your full dashboard is ready.
-                </p>
+                <Button
+                  className="mt-6"
+                  onClick={() => navigate("/dashboard")}
+                >
+                  Go to Dashboard →
+                </Button>
               </div>
             )}
             {/* END TEMPORARY */}
