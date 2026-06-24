@@ -249,16 +249,19 @@ export default function Dashboard() {
           <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
             <span className="text-xl mt-0.5">🏆</span>
             <p className="text-sm text-emerald-900">
-              <strong>You're the only painting company in {marketPosition.primaryCity} on PaintersMax</strong> — your
-              competitors haven't found us yet. Every lead in your area goes to you.
+              You're the first painting company in <strong>{marketPosition.primaryCity}</strong> on PaintersMax.
+              Your competitors are still running their business on paper and spreadsheets — you're already ahead.
+              Every feature you activate widens that gap.
             </p>
           </div>
         ) : (
           <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
             <span className="text-xl mt-0.5">⚡</span>
             <p className="text-sm text-amber-900">
-              <strong>{marketPosition.competitorCount} other painting {marketPosition.competitorCount === 1 ? "company" : "companies"} in your area</strong> joined
-              PaintersMax this month. Stay ahead — upgrade to Pro to unlock city landing pages and capture leads first.
+              <strong>{marketPosition.competitorCount} other painting {marketPosition.competitorCount === 1 ? "company" : "companies"} in your area</strong>{" "}
+              {marketPosition.competitorCount === 1 ? "is" : "are"} already using PaintersMax to manage their business
+              professionally. Upgrade to Pro to unlock city landing pages, automated follow-up, and marketing
+              materials — and stay a step ahead.
             </p>
           </div>
         )
