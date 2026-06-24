@@ -95,6 +95,9 @@ async function upsertPainterProfile(userId: number, data: Record<string, unknown
         tagline           = ${(data.tagline as string) ?? null},
         chatbot_name      = ${(data.chatbot_name as string) ?? null},
         chatbot_avatar    = ${(data.chatbot_avatar as string) ?? null},
+        has_website       = ${(data.has_website as boolean) ?? null},
+        template_style    = ${(data.template_style as string) ?? null},
+        template_tier     = ${(data.template_tier as string) ?? null},
         signup_step       = CASE WHEN ${signupStep}::integer IS NOT NULL THEN ${signupStep}::integer ELSE signup_step END,
         signup_updated_at = CASE WHEN ${signupStep}::integer IS NOT NULL THEN now() ELSE signup_updated_at END,
         updated_at        = now()
@@ -109,6 +112,7 @@ async function upsertPainterProfile(userId: number, data: Record<string, unknown
         service_cities, service_radius, logo_url,
         primary_color, secondary_color, tagline,
         chatbot_name, chatbot_avatar,
+        has_website, template_style, template_tier,
         signup_step, signup_updated_at,
         onboarding_completed, created_at, updated_at
       ) VALUES (
@@ -129,6 +133,9 @@ async function upsertPainterProfile(userId: number, data: Record<string, unknown
         ${(data.tagline as string) ?? null},
         ${(data.chatbot_name as string) ?? 'Iris'},
         ${(data.chatbot_avatar as string) ?? null},
+        ${(data.has_website as boolean) ?? null},
+        ${(data.template_style as string) ?? null},
+        ${(data.template_tier as string) ?? null},
         ${signupStep ?? 1},
         now(),
         false,
@@ -293,6 +300,9 @@ export function registerOnboardingRoutes(app: Express): void {
         tagline,
         chatbot_name,
         chatbot_avatar,
+        has_website,
+        template_style,
+        template_tier,
         signup_step,
       } = req.body as Record<string, unknown>;
 
@@ -313,6 +323,9 @@ export function registerOnboardingRoutes(app: Express): void {
         tagline,
         chatbot_name,
         chatbot_avatar,
+        has_website,
+        template_style,
+        template_tier,
         signup_step,
       });
 

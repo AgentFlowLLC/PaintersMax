@@ -34,6 +34,10 @@ interface SignupForm {
   chatbotName: string;
   chatbotAvatar: string;
   logoUrl: string;
+  // Step 5
+  hasWebsite: boolean | null;
+  templateStyle: string | null;
+  templateTier: string;
 }
 
 const INITIAL_FORM: SignupForm = {
@@ -53,6 +57,9 @@ const INITIAL_FORM: SignupForm = {
   chatbotName: "",
   chatbotAvatar: "avatar_1",
   logoUrl: "",
+  hasWebsite: null,
+  templateStyle: null,
+  templateTier: "",
 };
 
 const RADIUS_OPTIONS = [10, 25, 50, 100];
@@ -254,6 +261,7 @@ async function apiUploadLogo(file: File): Promise<string | null> {
 
 export default function Signup() {
   const [step, setStep] = useState(1);
+  const [websiteSubstep, setWebsiteSubstep] = useState<"fork" | "picker" | "existing">("fork");
   const [form, setForm] = useState<SignupForm>(INITIAL_FORM);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -424,6 +432,68 @@ export default function Signup() {
       });
       if (!ok) { setError(apiErr ?? "Failed to save. Please try again."); return; }
       setStep(5);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Step 5 website fork — saves has_website then routes to sub-screen ───────
+
+  async function handleWebsiteChoice(hasWebsite: boolean) {
+    setLoading(true);
+    setError(null);
+    try {
+      const { ok, error: apiErr } = await apiSave({
+        has_website: hasWebsite,
+        signup_step: 5,
+      });
+      if (!ok) { setError(apiErr ?? "Failed to save. Please try again."); return; }
+      update("hasWebsite", hasWebsite);
+      setWebsiteSubstep(hasWebsite ? "existing" : "picker");
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Step 5A template select — saves template fields then advances to step 6 ─
+
+  async function handleTemplatePick(templateStyle: string) {
+    setLoading(true);
+    setError(null);
+    try {
+      const { ok, error: apiErr } = await apiSave({
+        template_style: templateStyle,
+        template_tier: "starter",
+        signup_step: 5,
+      });
+      if (!ok) { setError(apiErr ?? "Failed to save. Please try again."); return; }
+      update("templateStyle", templateStyle);
+      update("templateTier", "starter");
+      setStep(6);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Step 5B keep site — saves null template then advances to step 6 ─────────
+
+  async function handleKeepSite() {
+    setLoading(true);
+    setError(null);
+    try {
+      const { ok, error: apiErr } = await apiSave({
+        template_style: null,
+        template_tier: null,
+        signup_step: 5,
+      });
+      if (!ok) { setError(apiErr ?? "Failed to save. Please try again."); return; }
+      setStep(6);
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -951,9 +1021,205 @@ export default function Signup() {
               </div>
             )}
 
-            {/* ── STEP 5 — Temporary confirmation ───────────────────────────── */}
-            {/* TEMPORARY — REPLACE IN CHUNK 2 */}
-            {step === 5 && (
+            {/* ── STEP 5 — Website Choice Fork ───────────────────────────────── */}
+            {step === 5 && websiteSubstep === "fork" && (
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                  Do you already have a website?
+                </h2>
+                <p className="text-gray-500 text-sm mb-8">
+                  We'll set up your online presence based on your answer.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Card A — needs a website */}
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => handleWebsiteChoice(false)}
+                    className="text-left rounded-2xl border-2 border-gray-200 hover:border-blue-400 bg-white p-6 transition-all focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-60"
+                  >
+                    <div className="text-4xl mb-3">🚀</div>
+                    <h3 className="font-bold text-gray-900 text-lg mb-1">
+                      I need a website
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      We'll build you one — free with your plan
+                    </p>
+                  </button>
+
+                  {/* Card B — already has a website */}
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => handleWebsiteChoice(true)}
+                    className="text-left rounded-2xl border-2 border-gray-200 hover:border-blue-400 bg-white p-6 transition-all focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-60"
+                  >
+                    <div className="text-4xl mb-3">🌐</div>
+                    <h3 className="font-bold text-gray-900 text-lg mb-1">
+                      I already have a website
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Keep it or let us rebuild it
+                    </p>
+                  </button>
+                </div>
+
+                {renderError()}
+
+                <div className="mt-8 flex justify-start">
+                  <Button
+                    variant="outline"
+                    onClick={() => { setError(null); setStep(4); }}
+                    disabled={loading}
+                  >
+                    ← Back
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* ── STEP 5A — Template Picker ───────────────────────────────────── */}
+            {step === 5 && websiteSubstep === "picker" && (
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                  {form.hasWebsite
+                    ? "Let's give your site an upgrade"
+                    : "Choose your website style"}
+                </h2>
+                <p className="text-gray-500 text-sm mb-8">
+                  You can change this anytime.
+                </p>
+
+                {/* Template card — Noir A4 */}
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-full max-w-xs rounded-2xl border-2 border-yellow-600 bg-gray-900 overflow-hidden shadow-lg">
+                    {/* Gold accent bar */}
+                    <div className="h-2 bg-yellow-500 w-full" />
+                    {/* CSS placeholder preview */}
+                    <div className="flex flex-col items-center justify-center gap-4 p-6" style={{ minHeight: "300px" }}>
+                      {/* Simulated logo area */}
+                      <div className="w-12 h-12 rounded-full bg-yellow-500/20 border-2 border-yellow-500 flex items-center justify-center">
+                        <span className="text-yellow-400 text-xl">🎨</span>
+                      </div>
+                      {/* Simulated headline */}
+                      <div className="space-y-2 w-full">
+                        <div className="h-2.5 bg-yellow-500/50 rounded-full w-3/4 mx-auto" />
+                        <div className="h-2 bg-gray-700 rounded-full w-full" />
+                        <div className="h-2 bg-gray-700 rounded-full w-5/6 mx-auto" />
+                      </div>
+                      {/* Simulated CTA button */}
+                      <div className="w-full border border-yellow-500/60 rounded-lg px-4 py-3 flex items-center justify-center mt-2">
+                        <div className="h-2 bg-yellow-500/40 rounded-full w-1/2" />
+                      </div>
+                      {/* Simulated content blocks */}
+                      <div className="grid grid-cols-3 gap-2 w-full">
+                        {[0, 1, 2].map((i) => (
+                          <div key={i} className="h-10 rounded bg-gray-800 border border-gray-700" />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Template meta */}
+                  <div className="text-center">
+                    <p className="font-bold text-gray-900 text-lg">Noir</p>
+                    <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
+                      Dark &amp; Elegant
+                    </span>
+                  </div>
+
+                  <Button
+                    onClick={() => handleTemplatePick("noir-a4")}
+                    disabled={loading}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-10"
+                  >
+                    {loading ? "Saving…" : "Select This Style →"}
+                  </Button>
+                </div>
+
+                <p className="text-center text-xs text-gray-400 mt-6">
+                  More styles coming soon — Pro and Agency plans unlock 16 premium designs.
+                </p>
+
+                {renderError()}
+
+                <div className="mt-6 flex justify-start">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setError(null);
+                      setWebsiteSubstep(form.hasWebsite ? "existing" : "fork");
+                    }}
+                    disabled={loading}
+                  >
+                    ← Back
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* ── STEP 5B — Existing Site Options ────────────────────────────── */}
+            {step === 5 && websiteSubstep === "existing" && (
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                  What would you like to do with your current site?
+                </h2>
+                <p className="text-gray-500 text-sm mb-8">
+                  Either way, PaintersMax will help you get more leads.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Option 1 — Redesign */}
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => { setError(null); setWebsiteSubstep("picker"); }}
+                    className="text-left rounded-2xl border-2 border-gray-200 hover:border-blue-400 bg-white p-6 transition-all focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-60"
+                  >
+                    <div className="text-4xl mb-3">✨</div>
+                    <h3 className="font-bold text-gray-900 text-lg mb-1">
+                      Redesign my site
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      Let PaintersMax give it a professional upgrade
+                    </p>
+                  </button>
+
+                  {/* Option 2 — Keep */}
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={handleKeepSite}
+                    className="text-left rounded-2xl border-2 border-gray-200 hover:border-blue-400 bg-white p-6 transition-all focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:opacity-60"
+                  >
+                    <div className="text-4xl mb-3">🔒</div>
+                    <h3 className="font-bold text-gray-900 text-lg mb-1">
+                      Keep my current site
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      We'll connect PaintersMax to what you already have
+                    </p>
+                  </button>
+                </div>
+
+                {renderError()}
+
+                <div className="mt-8 flex justify-start">
+                  <Button
+                    variant="outline"
+                    onClick={() => { setError(null); setWebsiteSubstep("fork"); }}
+                    disabled={loading}
+                  >
+                    ← Back
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* ── STEP 6 — Temporary completion ──────────────────────────────── */}
+            {/* TEMPORARY — REPLACE IN CHUNK 3 (Demo Data Engine) */}
+            {step === 6 && (
               <div className="text-center py-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-3">
                   🎉 You're in{form.companyName ? `, ${form.companyName}` : ""}! Your dashboard is ready — let's take a look.
@@ -971,7 +1237,7 @@ export default function Signup() {
           </div>
 
           {/* Footer note */}
-          {step <= 4 && (
+          {step < 5 && (
             <p className="text-center text-xs text-gray-400 mt-6">
               By signing up, you agree to our Terms of Service and Privacy Policy.
             </p>
