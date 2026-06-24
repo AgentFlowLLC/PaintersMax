@@ -256,7 +256,14 @@ export default function Leads() {
                         </span>
                       </div>
                       <div>
-                        <p className="font-medium">{lead.firstName} {lead.lastName}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{lead.firstName} {lead.lastName}</p>
+                          {lead.isDemo && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                              Demo
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           {lead.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{lead.email}</span>}
                           {lead.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{lead.phone}</span>}

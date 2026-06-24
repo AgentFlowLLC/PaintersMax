@@ -262,6 +262,7 @@ async function apiUploadLogo(file: File): Promise<string | null> {
 export default function Signup() {
   const [step, setStep] = useState(1);
   const [websiteSubstep, setWebsiteSubstep] = useState<"fork" | "picker" | "existing">("fork");
+  const [showWowMoment, setShowWowMoment] = useState(false);
   const [form, setForm] = useState<SignupForm>(INITIAL_FORM);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -459,7 +460,7 @@ export default function Signup() {
     }
   }
 
-  // ── Step 5A template select — saves template fields then advances to step 6 ─
+  // ── Step 5A template select — saves template fields then shows wow moment ────
 
   async function handleTemplatePick(templateStyle: string) {
     setLoading(true);
@@ -473,7 +474,7 @@ export default function Signup() {
       if (!ok) { setError(apiErr ?? "Failed to save. Please try again."); return; }
       update("templateStyle", templateStyle);
       update("templateTier", "starter");
-      setStep(6);
+      setShowWowMoment(true);
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -481,7 +482,7 @@ export default function Signup() {
     }
   }
 
-  // ── Step 5B keep site — saves null template then advances to step 6 ─────────
+  // ── Step 5B keep site — saves null template then shows wow moment ─────────
 
   async function handleKeepSite() {
     setLoading(true);
@@ -493,7 +494,7 @@ export default function Signup() {
         signup_step: 5,
       });
       if (!ok) { setError(apiErr ?? "Failed to save. Please try again."); return; }
-      setStep(6);
+      setShowWowMoment(true);
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -1021,8 +1022,44 @@ export default function Signup() {
               </div>
             )}
 
+            {/* ── WOW MOMENT — Email preview notice (between Step 5 and Step 6) ── */}
+            {showWowMoment && (
+              <div className="text-center py-8">
+                <div className="text-5xl mb-4">📬</div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-3">
+                  We're about to send you a sample email
+                </h2>
+                <p className="text-gray-600 max-w-sm mx-auto mb-2">
+                  So you can see exactly what your customers will receive — check your inbox after this.
+                </p>
+                <p className="text-gray-500 text-sm max-w-sm mx-auto mb-8">
+                  It will come from <strong>mail.paintersmax.app</strong> and is clearly marked as a sample.
+                </p>
+                <Button
+                  onClick={() => {
+                    const token = getAuthToken();
+                    const headers: Record<string, string> = { "Content-Type": "application/json" };
+                    if (token) headers["Authorization"] = `Bearer ${token}`;
+                    // Fire-and-forget: generate demo data + send sample quote email
+                    fetch("/api/onboarding/generate-demo", { method: "POST", headers })
+                      .catch(e => console.warn("[Demo] generate-demo failed:", e));
+                    // Fire-and-forget: mark onboarding complete + send welcome email
+                    fetch("/api/onboarding/complete", {
+                      method: "POST",
+                      headers,
+                      body: JSON.stringify({ business_email: form.businessEmail, company_name: form.companyName }),
+                    }).catch(e => console.warn("[Onboarding] complete failed:", e));
+                    setShowWowMoment(false);
+                    setStep(6);
+                  }}
+                >
+                  Got it — let's go →
+                </Button>
+              </div>
+            )}
+
             {/* ── STEP 5 — Website Choice Fork ───────────────────────────────── */}
-            {step === 5 && websiteSubstep === "fork" && (
+            {!showWowMoment && step === 5 && websiteSubstep === "fork" && (
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-1">
                   Do you already have a website?
@@ -1080,7 +1117,7 @@ export default function Signup() {
             )}
 
             {/* ── STEP 5A — Template Picker ───────────────────────────────────── */}
-            {step === 5 && websiteSubstep === "picker" && (
+            {!showWowMoment && step === 5 && websiteSubstep === "picker" && (
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-1">
                   {form.hasWebsite
@@ -1160,7 +1197,7 @@ export default function Signup() {
             )}
 
             {/* ── STEP 5B — Existing Site Options ────────────────────────────── */}
-            {step === 5 && websiteSubstep === "existing" && (
+            {!showWowMoment && step === 5 && websiteSubstep === "existing" && (
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-1">
                   What would you like to do with your current site?
@@ -1218,8 +1255,8 @@ export default function Signup() {
             )}
 
             {/* ── STEP 6 — Temporary completion ──────────────────────────────── */}
-            {/* TEMPORARY — REPLACE IN CHUNK 3 (Demo Data Engine) */}
-            {step === 6 && (
+            {/* TEMPORARY — REPLACE IN CHUNK 4 */}
+            {step === 6 && !showWowMoment && (
               <div className="text-center py-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-3">
                   🎉 You're in{form.companyName ? `, ${form.companyName}` : ""}! Your dashboard is ready — let's take a look.

@@ -176,6 +176,9 @@ export const leads = pgTable("leads", {
   // Customer Portal
   portalToken: varchar("portalToken", { length: 64 }).unique(),
   portalPhotos: jsonb("portalPhotos").$type<{ url: string; caption: string; type: "before" | "after" | "progress" }[]>(),
+  // Demo data
+  isDemo: boolean("isDemo").default(false),
+  demoExpiresAt: timestamp("demoExpiresAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   createdBy: integer("createdBy"),
@@ -399,6 +402,9 @@ export const appointments = pgTable("appointments", {
   smsSent: boolean("smsSent").default(false).notNull(),
   /** Whether a confirmation email was sent to the customer */
   emailSent: boolean("emailSent").default(false).notNull(),
+  // Demo data
+  isDemo: boolean("isDemo").default(false),
+  demoExpiresAt: timestamp("demoExpiresAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   createdBy: integer("createdBy"),
@@ -442,6 +448,9 @@ export const invoices = pgTable("invoices", {
   notes: text("notes"),
   /** Whether a payment link SMS was sent to the customer */
   smsSent: boolean("smsSent").default(false).notNull(),
+  // Demo data
+  isDemo: boolean("isDemo").default(false),
+  demoExpiresAt: timestamp("demoExpiresAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   createdBy: integer("createdBy"),

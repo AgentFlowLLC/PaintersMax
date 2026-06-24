@@ -255,6 +255,208 @@ async function sendWelcomeEmail(businessEmail: string, businessName: string) {
   });
 }
 
+// ─── Sample quote email ───────────────────────────────────────────────────────
+async function sendSampleQuoteEmail(
+  to: string,
+  companyName: string,
+  logoUrl?: string | null
+) {
+  const logoHtml = logoUrl
+    ? `<img src="${logoUrl}" alt="${companyName}" style="max-height:60px;max-width:180px;object-fit:contain;display:block;margin-bottom:8px;">`
+    : "";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;margin:0;padding:20px;">
+  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+    <!-- Sample banner -->
+    <div style="background:#fef3c7;border-bottom:2px solid #f59e0b;padding:12px 24px;text-align:center;">
+      <p style="margin:0;color:#92400e;font-size:13px;font-weight:700;letter-spacing:0.05em;">
+        ⚠️ THIS IS A SAMPLE — showing you what your customers will receive
+      </p>
+    </div>
+    <!-- Header -->
+    <div style="background:#7c3aed;padding:24px 32px;">
+      ${logoHtml}
+      <h1 style="color:#fff;margin:0;font-size:20px;font-weight:700;">${companyName}</h1>
+      <p style="color:#ddd6fe;margin:4px 0 0;font-size:13px;">Quote / Invoice</p>
+    </div>
+    <!-- Body -->
+    <div style="padding:32px;">
+      <p style="color:#374151;font-size:16px;margin:0 0 8px;">Hi <strong>Sample Client</strong>,</p>
+      <p style="color:#374151;font-size:15px;margin:0 0 24px;">
+        Thank you for choosing <strong>${companyName}</strong>! Here's your quote for the following work:
+      </p>
+      <!-- Line items -->
+      <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+        <thead>
+          <tr style="background:#f3f4f6;">
+            <th style="text-align:left;padding:10px 12px;font-size:13px;color:#6b7280;font-weight:600;">Description</th>
+            <th style="text-align:right;padding:10px 12px;font-size:13px;color:#6b7280;font-weight:600;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:12px;border-bottom:1px solid #e5e7eb;color:#111827;font-size:14px;">Interior Painting — Living Room</td>
+            <td style="padding:12px;border-bottom:1px solid #e5e7eb;color:#111827;font-size:14px;text-align:right;">$2,400.00</td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <td style="padding:12px;font-weight:700;color:#111827;font-size:15px;">Total</td>
+            <td style="padding:12px;font-weight:700;color:#059669;font-size:15px;text-align:right;">$2,400.00</td>
+          </tr>
+        </tfoot>
+      </table>
+      <!-- CTA -->
+      <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:6px;padding:20px;text-align:center;">
+        <p style="color:#5b21b6;margin:0 0 12px;font-size:14px;">Your customer would see a Pay Now button here:</p>
+        <span style="display:inline-block;background:#7c3aed;color:#fff;font-size:15px;font-weight:600;padding:12px 28px;border-radius:8px;">
+          Pay Now — $2,400.00
+        </span>
+      </div>
+    </div>
+    <!-- Footer -->
+    <div style="background:#f9fafb;padding:16px 32px;border-top:1px solid #e5e7eb;">
+      <p style="color:#9ca3af;font-size:12px;margin:0;">
+        Sent via <strong>PaintersMax</strong> — <a href="https://paintersmax.app" style="color:#9ca3af;">paintersmax.app</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  return sendEmail({
+    to,
+    subject: `Sample: Your PaintersMax Quote is Ready — ${companyName}`,
+    html,
+  });
+}
+
+// ─── Demo data generation ─────────────────────────────────────────────────────
+async function generateDemoData(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+
+  const profile = await getPainterProfile(userId) as Record<string, unknown> | null;
+  if (!profile) return;
+
+  const user = await getUserById(userId);
+  const companyName = (profile.company_name as string) || "Your Company";
+  const logoUrl = (profile.logo_url as string) || null;
+
+  // Pick city from service_cities or fall back to address city
+  const serviceCities = profile.service_cities as Array<{ city: string; state: string }> | null;
+  const city = serviceCities?.[0]?.city ?? "Dallas";
+  const state = serviceCities?.[0]?.state ?? "TX";
+  const cityLine = `${city}, ${state}`;
+
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  // ── Insert 3 demo leads ──────────────────────────────────────────────────────
+  const lead1Row = await db.execute(sql`
+    INSERT INTO leads (
+      "tenantId", "firstName", "lastName", "projectType", "projectAddress",
+      "projectDescription", stage, source, "estimatedValue",
+      "isDemo", "demoExpiresAt", "createdBy", "createdAt", "updatedAt"
+    ) VALUES (
+      1, 'Maria', 'Garcia',
+      'Interior Painting',
+      ${`123 Oak Street, ${cityLine}`},
+      'Demo Lead — not a real customer',
+      'lead', 'demo', 2800,
+      true, ${expiresAt.toISOString()},
+      ${userId}, now(), now()
+    ) RETURNING id
+  `);
+  const lead1Id = ((lead1Row as unknown as { rows: { id: number }[] }).rows)?.[0]?.id;
+
+  await db.execute(sql`
+    INSERT INTO leads (
+      "tenantId", "firstName", "lastName", "projectType", "projectAddress",
+      "projectDescription", stage, source, "estimatedValue",
+      "lastContactedAt", "isDemo", "demoExpiresAt", "createdBy", "createdAt", "updatedAt"
+    ) VALUES (
+      1, 'James', 'Wilson',
+      'Exterior Painting',
+      ${`456 Elm Drive, ${cityLine}`},
+      'Demo Lead — not a real customer',
+      'contacted', 'demo', 4500,
+      now(), true, ${expiresAt.toISOString()},
+      ${userId}, now(), now()
+    )
+  `);
+
+  await db.execute(sql`
+    INSERT INTO leads (
+      "tenantId", "firstName", "lastName", "projectType", "projectAddress",
+      "projectDescription", stage, source, "estimatedValue",
+      "isDemo", "demoExpiresAt", "createdBy", "createdAt", "updatedAt"
+    ) VALUES (
+      1, 'Sarah', 'Chen',
+      'Cabinet Refinishing',
+      ${`789 Maple Court, ${cityLine}`},
+      'Demo Lead — not a real customer',
+      'quoted', 'demo', 1200,
+      true, ${expiresAt.toISOString()},
+      ${userId}, now(), now()
+    )
+  `);
+
+  // ── Insert 1 demo invoice (linked to lead 1) ─────────────────────────────────
+  if (lead1Id) {
+    await db.execute(sql`
+      INSERT INTO invoices (
+        "tenantId", "leadId", "invoiceNumber", "lineItems",
+        subtotal, tax, total, status,
+        "dueDate", "paidAt", notes,
+        "isDemo", "demoExpiresAt", "createdBy", "createdAt", "updatedAt"
+      ) VALUES (
+        1, ${lead1Id}, 'DEMO-001',
+        ${JSON.stringify([{ description: "Interior Painting — Living Room", quantity: 1, unitPrice: 2400 }])}::jsonb,
+        2400, 0, 2400, 'paid',
+        now(), now(),
+        ${`Demo invoice for ${companyName} — not a real transaction`},
+        true, ${expiresAt.toISOString()},
+        ${userId}, now(), now()
+      )
+    `);
+
+    // ── Insert 1 demo appointment (linked to lead 1) ───────────────────────────
+    const appointmentDate = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    appointmentDate.setHours(10, 0, 0, 0);
+
+    await db.execute(sql`
+      INSERT INTO appointments (
+        "tenantId", "leadId", "jobType", "scheduledDate", "timeSlot",
+        status, notes, "smsSent", "emailSent",
+        "isDemo", "demoExpiresAt", "createdBy", "createdAt", "updatedAt"
+      ) VALUES (
+        1, ${lead1Id},
+        'Estimate — Johnson Residence (Demo)',
+        ${appointmentDate.toISOString()}, '10:00 AM',
+        'scheduled',
+        'Demo appointment — not a real booking',
+        false, false,
+        true, ${expiresAt.toISOString()},
+        ${userId}, now(), now()
+      )
+    `);
+  }
+
+  // ── Send sample quote email ───────────────────────────────────────────────────
+  const emailTo = user?.email ?? (profile.business_email as string);
+  if (emailTo) {
+    try {
+      await sendSampleQuoteEmail(emailTo, companyName, logoUrl);
+    } catch (emailErr) {
+      console.warn("[Demo] Sample quote email failed (non-fatal):", emailErr);
+    }
+  }
+}
+
 // ─── Route registration ───────────────────────────────────────────────────────
 export function registerOnboardingRoutes(app: Express): void {
   /**
@@ -416,6 +618,25 @@ export function registerOnboardingRoutes(app: Express): void {
       return res.json({ success: true });
     } catch (err) {
       console.error("[Onboarding] save-later error:", err);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  /**
+   * POST /api/onboarding/generate-demo
+   * Body: (none — user resolved from JWT)
+   * Creates 3 demo leads, 1 demo invoice, 1 demo appointment, sends sample quote email.
+   * All records marked is_demo=true with a 30-day expiry for Chunk 5 cleanup.
+   * Returns: { success: true }
+   */
+  app.post("/api/onboarding/generate-demo", async (req: Request, res: Response) => {
+    try {
+      const user = await getAuthenticatedUser(req);
+      if (!user) return res.status(401).json({ error: "Unauthorized" });
+      await generateDemoData(user.id);
+      return res.json({ success: true });
+    } catch (err) {
+      console.error("[Demo] generate-demo error:", err);
       return res.status(500).json({ error: "Internal server error" });
     }
   });
