@@ -261,8 +261,9 @@ async function sendSampleQuoteEmail(
   companyName: string,
   logoUrl?: string | null
 ) {
-  const logoHtml = logoUrl
-    ? `<img src="${logoUrl}" alt="${companyName}" style="max-height:60px;max-width:180px;object-fit:contain;display:block;margin-bottom:8px;">`
+  const displayName = companyName?.trim() || "Your Company";
+  const logoHtml = logoUrl?.trim()
+    ? `<img src="${logoUrl}" alt="${displayName}" style="max-height:60px;max-width:180px;object-fit:contain;display:block;margin-bottom:8px;">`
     : "";
 
   const html = `
@@ -280,14 +281,14 @@ async function sendSampleQuoteEmail(
     <!-- Header -->
     <div style="background:#7c3aed;padding:24px 32px;">
       ${logoHtml}
-      <h1 style="color:#fff;margin:0;font-size:20px;font-weight:700;">${companyName}</h1>
+      <h1 style="color:#fff;margin:0;font-size:20px;font-weight:700;">${displayName}</h1>
       <p style="color:#ddd6fe;margin:4px 0 0;font-size:13px;">Quote / Invoice</p>
     </div>
     <!-- Body -->
     <div style="padding:32px;">
       <p style="color:#374151;font-size:16px;margin:0 0 8px;">Hi <strong>Sample Client</strong>,</p>
       <p style="color:#374151;font-size:15px;margin:0 0 24px;">
-        Thank you for choosing <strong>${companyName}</strong>! Here's your quote for the following work:
+        Thank you for choosing <strong>${displayName}</strong>! Here's your quote for the following work:
       </p>
       <!-- Line items -->
       <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
@@ -330,8 +331,9 @@ async function sendSampleQuoteEmail(
 
   return sendEmail({
     to,
-    subject: `Sample: Your PaintersMax Quote is Ready — ${companyName}`,
+    subject: `Sample: Your PaintersMax Quote is Ready — ${displayName}`,
     html,
+    replyTo: "support@paintersmax.app",
   });
 }
 
@@ -347,11 +349,12 @@ async function generateDemoData(userId: number) {
   const companyName = (profile.company_name as string) || "Your Company";
   const logoUrl = (profile.logo_url as string) || null;
 
-  // Pick city from service_cities or fall back to address city
+  // City fallback chain: serviceCities → address city segment → "Your Area"
   const serviceCities = profile.service_cities as Array<{ city: string; state: string }> | null;
-  const city = serviceCities?.[0]?.city ?? "Dallas";
-  const state = serviceCities?.[0]?.state ?? "TX";
-  const cityLine = `${city}, ${state}`;
+  const addressCity = (profile.address as string | null)?.split(",")?.[0]?.trim() || null;
+  const city = serviceCities?.[0]?.city?.trim() || addressCity || "Your Area";
+  const state = serviceCities?.[0]?.state?.trim() || "";
+  const cityLine = state ? `${city}, ${state}` : city;
 
   const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 

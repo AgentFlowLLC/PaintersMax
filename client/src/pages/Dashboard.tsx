@@ -101,6 +101,10 @@ export default function Dashboard() {
   const [dateRange, setDateRange] = useState<DateRange>("all_time");
   const { data: stats, isLoading } = trpc.dashboard.stats.useQuery({ dateRange });
   const { data: trendData, isLoading: trendLoading } = trpc.dashboard.revenueTrend.useQuery();
+  const { data: marketPosition } = trpc.dashboard.marketPosition.useQuery(undefined, { retry: false });
+  const [bannerDismissed, setBannerDismissed] = useState(
+    () => typeof window !== "undefined" && localStorage.getItem("demo_banner_dismissed") === "true"
+  );
   const [, setLocation] = useLocation();
   const { branding } = useBranding();
   const lineColor = branding.primaryColor || "#3b82f6";
@@ -177,6 +181,27 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Demo awareness banner — shows only when demo leads exist, dismissible */}
+      {stats?.hasDemoLeads && !bannerDismissed && (
+        <div className="relative flex items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
+          <span className="mt-0.5">🎯</span>
+          <p className="flex-1">
+            Your dashboard includes <strong>3 sample leads</strong> to help you get familiar — they'll disappear after 30 days.
+            Add your first real lead anytime using the button above.
+          </p>
+          <button
+            onClick={() => {
+              localStorage.setItem("demo_banner_dismissed", "true");
+              setBannerDismissed(true);
+            }}
+            className="shrink-0 text-yellow-600 hover:text-yellow-900 transition-colors font-bold text-base leading-none mt-0.5"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Stats Row — 5 cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard
@@ -217,6 +242,27 @@ export default function Dashboard() {
           trendUp={conversionRate >= 20}
         />
       </div>
+
+      {/* Market position nudge — fail silently if API unavailable */}
+      {marketPosition && (
+        marketPosition.isAlone ? (
+          <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+            <span className="text-xl mt-0.5">🏆</span>
+            <p className="text-sm text-emerald-900">
+              <strong>You're the only painting company in {marketPosition.primaryCity} on PaintersMax</strong> — your
+              competitors haven't found us yet. Every lead in your area goes to you.
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+            <span className="text-xl mt-0.5">⚡</span>
+            <p className="text-sm text-amber-900">
+              <strong>{marketPosition.competitorCount} other painting {marketPosition.competitorCount === 1 ? "company" : "companies"} in your area</strong> joined
+              PaintersMax this month. Stay ahead — upgrade to Pro to unlock city landing pages and capture leads first.
+            </p>
+          </div>
+        )
+      )}
 
       {/* Revenue Trend Chart */}
       <Card className="border shadow-sm">

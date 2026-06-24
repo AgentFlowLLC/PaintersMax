@@ -1055,6 +1055,9 @@ export default function Signup() {
                 >
                   Got it — let's go →
                 </Button>
+                <p className="text-sm text-gray-500 text-center mt-3">
+                  Check your spam folder if it doesn't arrive within 2 minutes.
+                </p>
               </div>
             )}
 
@@ -1177,6 +1180,41 @@ export default function Signup() {
 
                 <p className="text-center text-xs text-gray-400 mt-6">
                   More styles coming soon — Pro and Agency plans unlock 16 premium designs.
+                </p>
+
+                {/* Blurred upgrade teaser cards — visual only, no click handlers */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 pointer-events-none select-none">
+                  {/* Pro — Atelier */}
+                  <div className="rounded-2xl border-2 border-gray-200 bg-white p-5 flex flex-col items-center gap-3">
+                    <div className="relative w-full rounded-xl overflow-hidden" style={{ height: 160 }}>
+                      <div className="absolute inset-0 bg-gray-100 border border-gray-200" style={{ filter: "blur(4px)" }} />
+                      <div className="absolute inset-0 flex items-center justify-center text-4xl">🔒</div>
+                    </div>
+                    <div className="text-center">
+                      <p className="font-bold text-gray-900">Pro — Atelier</p>
+                      <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">
+                        Light &amp; Editorial
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400">Upgrade to unlock</p>
+                  </div>
+                  {/* Pro — Hearth */}
+                  <div className="rounded-2xl border-2 border-gray-200 bg-white p-5 flex flex-col items-center gap-3">
+                    <div className="relative w-full rounded-xl overflow-hidden" style={{ height: 160 }}>
+                      <div className="absolute inset-0 bg-orange-50 border border-orange-100" style={{ filter: "blur(4px)" }} />
+                      <div className="absolute inset-0 flex items-center justify-center text-4xl">🔒</div>
+                    </div>
+                    <div className="text-center">
+                      <p className="font-bold text-gray-900">Pro — Hearth</p>
+                      <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-xs font-medium">
+                        Warm &amp; Friendly
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-400">Upgrade to unlock</p>
+                  </div>
+                </div>
+                <p className="text-center text-sm text-gray-500 mt-4">
+                  Pro and Agency plans unlock 16 premium designs — switch anytime after signup.
                 </p>
 
                 {renderError()}

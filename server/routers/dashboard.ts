@@ -95,6 +95,51 @@ export const dashboardRouter = router({
   }),
 
   /**
+   * Returns competitive intel for the current painter's service area.
+   * Queries painter_profiles to count other painters with overlapping service cities.
+   */
+  marketPosition: protectedProcedure.query(async ({ ctx }) => {
+    const db = await getDb();
+    if (!db) return null;
+
+    const userId = ctx.user.id;
+
+    const profileRows = await db.execute(
+      sql`SELECT service_cities FROM painter_profiles WHERE user_id = ${userId} LIMIT 1`
+    );
+    const profile = (profileRows as unknown as { rows: Record<string, unknown>[] }).rows?.[0];
+    if (!profile) return null;
+
+    const serviceCities = (profile.service_cities as Array<{ city: string }> | null) ?? [];
+    const primaryCity = serviceCities?.[0]?.city?.trim() || null;
+    if (!primaryCity) return null;
+
+    const competitorRows = await db.execute(sql`
+      WITH my_cities AS (
+        SELECT jsonb_array_elements(service_cities)->>'city' AS city
+        FROM painter_profiles
+        WHERE user_id = ${userId}
+      )
+      SELECT COUNT(DISTINCT p.user_id)::integer AS competitor_count
+      FROM painter_profiles p
+      WHERE p.user_id != ${userId}
+        AND p.service_cities IS NOT NULL
+        AND jsonb_array_length(p.service_cities) > 0
+        AND EXISTS (
+          SELECT 1
+          FROM jsonb_array_elements(p.service_cities) c
+          WHERE c->>'city' IN (SELECT city FROM my_cities)
+        )
+    `);
+
+    const competitorCount = Number(
+      ((competitorRows as unknown as { rows: { competitor_count: number }[] }).rows)?.[0]?.competitor_count ?? 0
+    );
+
+    return { competitorCount, primaryCity, isAlone: competitorCount === 0 };
+  }),
+
+  /**
    * Returns all dashboard data in a single query batch.
    * Accepts optional dateRange to filter KPI metrics.
    */
@@ -261,6 +306,13 @@ export const dashboardRouter = router({
         .orderBy(desc(communicationLog.sentAt))
         .limit(10);
 
+      // ── Demo leads check (for dashboard banner) ───────────────────────────────
+      const [demoRow] = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(leads)
+        .where(eq(leads.isDemo, true));
+      const hasDemoLeads = Number(demoRow?.count ?? 0) > 0;
+
       return {
         // KPI metrics
         totalLeads,
@@ -279,6 +331,8 @@ export const dashboardRouter = router({
         recentActivity,
         // Active date range (echo back for UI)
         dateRange,
+        // Demo awareness
+        hasDemoLeads,
       };
     }),
 });
