@@ -5,10 +5,10 @@
  *
  * Shows a progress bar (0–100%) based on how many painter_profile fields
  * are filled in. Calculates score from:
- *   Business info complete:          +20%
+ *   Business info complete:          +20%  (fields filled OR signup_step >= 5)
  *   Service areas added:             +20%
  *   Logo uploaded:                   +15%
- *   Colors selected (non-default):   +15%
+ *   Website setup:                   +15%  (has_website set, or template_style/tier chosen)
  *   Chatbot name set:                +10%
  *   Plan selected (tier != 'free'):  +20%
  *
@@ -29,10 +29,13 @@ interface PainterProfile {
   address?: string;
   service_cities?: unknown[];
   logo_url?: string;
-  primary_color?: string;
-  secondary_color?: string;
   chatbot_name?: string;
   onboarding_completed?: boolean;
+  // Chunk 1–2 signup fields
+  signup_step?: number;
+  has_website?: boolean | null;
+  template_style?: string | null;
+  template_tier?: string | null;
 }
 
 interface UserData {
@@ -51,22 +54,28 @@ function calcScore(profile: PainterProfile | null, user: UserData | null): Secti
   const p = profile ?? {};
   const u = user ?? {};
 
+  // True if all four core fields are filled, OR if the user has reached step 5+
+  // (meaning they completed Account → Business Info → Service Areas → Brand Kit → Website Choice)
   const businessInfoComplete =
-    !!(p.company_name?.trim()) &&
-    !!(p.phone?.trim()) &&
-    !!(p.business_email?.trim()) &&
-    !!(p.address?.trim());
+    (
+      !!(p.company_name?.trim()) &&
+      !!(p.phone?.trim()) &&
+      !!(p.business_email?.trim()) &&
+      !!(p.address?.trim())
+    ) ||
+    (typeof p.signup_step === "number" && p.signup_step >= 5);
 
   const serviceAreasAdded =
     Array.isArray(p.service_cities) && p.service_cities.length > 0;
 
   const logoUploaded = !!(p.logo_url?.trim());
 
-  // "Colors selected" means they've changed from the defaults
-  const colorsSelected =
-    !!(p.primary_color?.trim()) &&
-    !!(p.secondary_color?.trim()) &&
-    (p.primary_color !== "#7c3aed" || p.secondary_color !== "#f59e0b");
+  // True if the user completed the website-choice fork (has_website is set)
+  // or selected a template style/tier — covers both the "need a site" and "keep my site" paths
+  const websiteSetupComplete =
+    p.has_website !== null && p.has_website !== undefined ||
+    !!(p.template_style) ||
+    !!(p.template_tier);
 
   const chatbotNameSet = !!(p.chatbot_name?.trim());
 
@@ -93,10 +102,10 @@ function calcScore(profile: PainterProfile | null, user: UserData | null): Secti
       href: "/onboarding",
     },
     {
-      label: "Brand colors",
+      label: "Website setup",
       points: 15,
-      complete: colorsSelected,
-      href: "/onboarding",
+      complete: websiteSetupComplete,
+      href: "/signup",
     },
     {
       label: "AI assistant name",

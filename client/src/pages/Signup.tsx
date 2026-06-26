@@ -357,6 +357,7 @@ export default function Signup() {
         return;
       }
       setAuthToken(data.token);
+      update("businessEmail", form.email.trim());
       setStep(2);
     } catch {
       setError("Network error. Please check your connection and try again.");
@@ -684,11 +685,11 @@ export default function Signup() {
                     <Input
                       id="businessEmail"
                       type="email"
-                      placeholder="hello@yourcompany.com"
                       value={form.businessEmail}
-                      onChange={(e) => update("businessEmail", e.target.value)}
-                      className="mt-1"
+                      readOnly
+                      className="mt-1 bg-gray-50 text-gray-500 cursor-not-allowed"
                     />
+                    <p className="text-xs text-gray-400 mt-1">Same as your login email — you can update this in Settings later.</p>
                   </div>
                   <div className="sm:col-span-2">
                     <Label htmlFor="address">Business Address <span className="text-red-500">*</span></Label>
@@ -1292,22 +1293,37 @@ export default function Signup() {
               </div>
             )}
 
-            {/* ── STEP 6 — Temporary completion ──────────────────────────────── */}
-            {/* TEMPORARY — REPLACE IN CHUNK 4 */}
+            {/* ── STEP 6 — Completion screen ──────────────────────────────────── */}
             {step === 6 && !showWowMoment && (
               <div className="text-center py-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-3">
-                  🎉 You're in{form.companyName ? `, ${form.companyName}` : ""}! Your dashboard is ready — let's take a look.
+                <div className="text-5xl mb-4">🎉</div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Welcome{form.companyName ? `, ${form.companyName}` : ""}!
                 </h2>
+                <p className="text-gray-500 text-sm mb-8">Your PaintersMax account is all set.</p>
+
+                <div className="text-left max-w-xs mx-auto space-y-3 mb-8">
+                  {[
+                    "Your PaintersMax dashboard is live",
+                    "Your Noir website template is reserved",
+                    "3 sample leads added to your pipeline",
+                    "Sample quote email sent to your inbox",
+                  ].map((item) => (
+                    <div key={item} className="flex items-center gap-3">
+                      <span className="text-green-500 text-xl flex-shrink-0">✅</span>
+                      <span className="text-gray-700 text-sm font-medium">{item}</span>
+                    </div>
+                  ))}
+                </div>
+
                 <Button
-                  className="mt-6"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8"
                   onClick={() => navigate("/dashboard")}
                 >
                   Go to Dashboard →
                 </Button>
               </div>
             )}
-            {/* END TEMPORARY */}
 
           </div>
 
