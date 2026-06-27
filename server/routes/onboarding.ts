@@ -65,7 +65,7 @@ async function getPainterProfile(userId: number) {
   const db = await getDb();
   if (!db) return null;
   const rows = await db.execute(
-    sql`SELECT * FROM painter_profiles WHERE user_id = ${userId} LIMIT 1`
+    sql`SELECT * FROM painter_profiles WHERE user_id = ${userId} ORDER BY signup_step DESC, id DESC LIMIT 1`
   );
   return (rows as unknown as { rows: unknown[] }).rows?.[0] ?? null;
 }
@@ -73,73 +73,65 @@ async function getPainterProfile(userId: number) {
 async function upsertPainterProfile(userId: number, data: Record<string, unknown>) {
   const db = await getDb();
   if (!db) return null;
-  const existing = await getPainterProfile(userId);
   const signupStep = (data.signup_step as number) ?? null;
-  if (existing) {
-    // UPDATE — only overwrite columns that were actually provided in this call
-    await db.execute(sql`
-      UPDATE painter_profiles SET
-        company_name      = COALESCE(${(data.company_name as string) ?? null}, company_name),
-        phone             = COALESCE(${(data.phone as string) ?? null}, phone),
-        business_email    = COALESCE(${(data.business_email as string) ?? null}, business_email),
-        website           = ${(data.website as string) ?? null},
-        address           = COALESCE(${(data.address as string) ?? null}, address),
-        years_in_business = ${(data.years_in_business as number) ?? null},
-        license_number    = ${(data.license_number as string) ?? null},
-        insurance_carrier = ${(data.insurance_carrier as string) ?? null},
-        service_cities    = ${JSON.stringify(data.service_cities ?? [])}::jsonb,
-        service_radius    = ${(data.service_radius as number) ?? null},
-        logo_url          = ${(data.logo_url as string) ?? null},
-        tagline           = ${(data.tagline as string) ?? null},
-        chatbot_name      = ${(data.chatbot_name as string) ?? null},
-        chatbot_avatar    = ${(data.chatbot_avatar as string) ?? null},
-        has_website       = ${(data.has_website as boolean) ?? null},
-        template_style    = ${(data.template_style as string) ?? null},
-        template_tier     = ${(data.template_tier as string) ?? null},
-        signup_step       = CASE WHEN ${signupStep}::integer IS NOT NULL THEN ${signupStep}::integer ELSE signup_step END,
-        signup_updated_at = CASE WHEN ${signupStep}::integer IS NOT NULL THEN now() ELSE signup_updated_at END,
-        updated_at        = now()
-      WHERE user_id = ${userId}
-    `);
-  } else {
-    // INSERT — fallback for users who somehow have no profile row yet
-    await db.execute(sql`
-      INSERT INTO painter_profiles (
-        user_id, company_name, phone, business_email, website, address,
-        years_in_business, license_number, insurance_carrier,
-        service_cities, service_radius, logo_url,
-        tagline,
-        chatbot_name, chatbot_avatar,
-        has_website, template_style, template_tier,
-        signup_step, signup_updated_at,
-        onboarding_completed, created_at, updated_at
-      ) VALUES (
-        ${userId},
-        ${(data.company_name as string) ?? ''},
-        ${(data.phone as string) ?? ''},
-        ${(data.business_email as string) ?? ''},
-        ${(data.website as string) ?? null},
-        ${(data.address as string) ?? ''},
-        ${(data.years_in_business as number) ?? null},
-        ${(data.license_number as string) ?? null},
-        ${(data.insurance_carrier as string) ?? null},
-        ${JSON.stringify(data.service_cities ?? [])}::jsonb,
-        ${(data.service_radius as number) ?? null},
-        ${(data.logo_url as string) ?? null},
-        ${(data.tagline as string) ?? null},
-        ${(data.chatbot_name as string) ?? 'Iris'},
-        ${(data.chatbot_avatar as string) ?? null},
-        ${(data.has_website as boolean) ?? null},
-        ${(data.template_style as string) ?? null},
-        ${(data.template_tier as string) ?? null},
-        ${signupStep ?? 1},
-        now(),
-        false,
-        now(),
-        now()
-      )
-    `);
-  }
+
+  await db.execute(sql`
+    INSERT INTO painter_profiles (
+      user_id, company_name, phone, business_email, website, address,
+      years_in_business, license_number, insurance_carrier,
+      service_cities, service_radius, logo_url,
+      tagline, chatbot_name, chatbot_avatar,
+      has_website, template_style, template_tier,
+      signup_step, signup_updated_at,
+      onboarding_completed, created_at, updated_at
+    ) VALUES (
+      ${userId},
+      ${(data.company_name as string) ?? ''},
+      ${(data.phone as string) ?? ''},
+      ${(data.business_email as string) ?? ''},
+      ${(data.website as string) ?? null},
+      ${(data.address as string) ?? ''},
+      ${(data.years_in_business as number) ?? null},
+      ${(data.license_number as string) ?? null},
+      ${(data.insurance_carrier as string) ?? null},
+      ${JSON.stringify(data.service_cities ?? [])}::jsonb,
+      ${(data.service_radius as number) ?? null},
+      ${(data.logo_url as string) ?? null},
+      ${(data.tagline as string) ?? null},
+      ${(data.chatbot_name as string) ?? 'Iris'},
+      ${(data.chatbot_avatar as string) ?? null},
+      ${(data.has_website as boolean) ?? null},
+      ${(data.template_style as string) ?? null},
+      ${(data.template_tier as string) ?? null},
+      ${signupStep ?? 1},
+      now(),
+      false,
+      now(),
+      now()
+    )
+    ON CONFLICT (user_id) DO UPDATE SET
+      company_name      = COALESCE(NULLIF(EXCLUDED.company_name, ''), painter_profiles.company_name),
+      phone             = COALESCE(NULLIF(EXCLUDED.phone, ''), painter_profiles.phone),
+      business_email    = COALESCE(NULLIF(EXCLUDED.business_email, ''), painter_profiles.business_email),
+      website           = EXCLUDED.website,
+      address           = COALESCE(NULLIF(EXCLUDED.address, ''), painter_profiles.address),
+      years_in_business = EXCLUDED.years_in_business,
+      license_number    = EXCLUDED.license_number,
+      insurance_carrier = EXCLUDED.insurance_carrier,
+      service_cities    = EXCLUDED.service_cities,
+      service_radius    = EXCLUDED.service_radius,
+      logo_url          = EXCLUDED.logo_url,
+      tagline           = EXCLUDED.tagline,
+      chatbot_name      = EXCLUDED.chatbot_name,
+      chatbot_avatar    = EXCLUDED.chatbot_avatar,
+      has_website       = EXCLUDED.has_website,
+      template_style    = EXCLUDED.template_style,
+      template_tier     = EXCLUDED.template_tier,
+      signup_step       = GREATEST(painter_profiles.signup_step, EXCLUDED.signup_step),
+      signup_updated_at = CASE WHEN EXCLUDED.signup_step IS NOT NULL THEN now() ELSE painter_profiles.signup_updated_at END,
+      updated_at        = now()
+  `);
+
   return getPainterProfile(userId);
 }
 
@@ -334,24 +326,44 @@ async function sendSampleQuoteEmail(
 }
 
 // ─── Demo data generation ─────────────────────────────────────────────────────
-async function generateDemoData(userId: number) {
+async function generateDemoData(userId: number, tenantId: number) {
   const db = await getDb();
   if (!db) return;
 
-  let profile = await getPainterProfile(userId) as Record<string, unknown> | null;
+  // Fetch the most complete profile row for this user
+  const fetchProfile = async () => {
+    const rows = await db!.execute(
+      sql`SELECT * FROM painter_profiles WHERE user_id = ${userId} ORDER BY signup_step DESC, id DESC LIMIT 1`
+    );
+    return (rows as unknown as { rows: unknown[] }).rows?.[0] as Record<string, unknown> | null ?? null;
+  };
+
+  let profile = await fetchProfile();
+  console.log("[Demo] Profile found:", JSON.stringify({
+    id: profile?.id,
+    signup_step: profile?.signup_step,
+    user_id: profile?.user_id,
+  }));
+
   if (!profile) {
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    profile = await getPainterProfile(userId) as Record<string, unknown> | null;
+    profile = await fetchProfile();
+    console.log("[Demo] Profile after retry:", JSON.stringify({
+      id: profile?.id,
+      signup_step: profile?.signup_step,
+      user_id: profile?.user_id,
+    }));
   }
   if (!profile) {
     console.error("[Demo] Painter profile not found for userId:", userId, "— demo data not created");
     return;
   }
 
+  console.log("[Demo] Using tenantId:", tenantId);
+
   const user = await getUserById(userId);
   const companyName = (profile.company_name as string) || "Your Company";
   const logoUrl = (profile.logo_url as string) || null;
-  const tenantId = (profile.tenantId as number) ?? (profile.tenant_id as number) ?? userId;
 
   // City fallback chain: serviceCities → address city segment → "Your Area"
   const serviceCities = profile.service_cities as Array<{ city: string; state: string }> | null;
@@ -379,6 +391,7 @@ async function generateDemoData(userId: number) {
     ) RETURNING id
   `);
   const lead1Id = ((lead1Row as unknown as { rows: { id: number }[] }).rows)?.[0]?.id;
+  console.log("[Demo] Lead 1 inserted successfully", { lead1Id });
 
   await db.execute(sql`
     INSERT INTO leads (
@@ -395,6 +408,7 @@ async function generateDemoData(userId: number) {
       ${userId}, now(), now()
     )
   `);
+  console.log("[Demo] Lead 2 inserted successfully");
 
   await db.execute(sql`
     INSERT INTO leads (
@@ -411,6 +425,7 @@ async function generateDemoData(userId: number) {
       ${userId}, now(), now()
     )
   `);
+  console.log("[Demo] Lead 3 inserted successfully");
 
   // ── Insert 1 demo invoice (linked to lead 1) ─────────────────────────────────
   if (lead1Id) {
@@ -636,7 +651,8 @@ export function registerOnboardingRoutes(app: Express): void {
     try {
       const user = await getAuthenticatedUser(req);
       if (!user) return res.status(401).json({ error: "Unauthorized" });
-      await generateDemoData(user.id);
+      const tenantId = (req as any)?.tenant?.id ?? 1;
+      await generateDemoData(user.id, tenantId);
       return res.json({ success: true });
     } catch (err) {
       console.error("[Demo] generate-demo error:", err);
