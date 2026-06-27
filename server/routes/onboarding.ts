@@ -338,12 +338,20 @@ async function generateDemoData(userId: number) {
   const db = await getDb();
   if (!db) return;
 
-  const profile = await getPainterProfile(userId) as Record<string, unknown> | null;
-  if (!profile) return;
+  let profile = await getPainterProfile(userId) as Record<string, unknown> | null;
+  if (!profile) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    profile = await getPainterProfile(userId) as Record<string, unknown> | null;
+  }
+  if (!profile) {
+    console.error("[Demo] Painter profile not found for userId:", userId, "— demo data not created");
+    return;
+  }
 
   const user = await getUserById(userId);
   const companyName = (profile.company_name as string) || "Your Company";
   const logoUrl = (profile.logo_url as string) || null;
+  const tenantId = (profile.tenantId as number) ?? (profile.tenant_id as number) ?? userId;
 
   // City fallback chain: serviceCities → address city segment → "Your Area"
   const serviceCities = profile.service_cities as Array<{ city: string; state: string }> | null;
@@ -361,7 +369,7 @@ async function generateDemoData(userId: number) {
       "projectDescription", stage, source, "estimatedValue",
       "isDemo", "demoExpiresAt", "createdBy", "createdAt", "updatedAt"
     ) VALUES (
-      1, 'Maria', 'Garcia',
+      ${tenantId}, 'Maria', 'Garcia',
       'Interior Painting',
       ${`123 Oak Street, ${cityLine}`},
       'Demo Lead — not a real customer',
@@ -378,7 +386,7 @@ async function generateDemoData(userId: number) {
       "projectDescription", stage, source, "estimatedValue",
       "lastContactedAt", "isDemo", "demoExpiresAt", "createdBy", "createdAt", "updatedAt"
     ) VALUES (
-      1, 'James', 'Wilson',
+      ${tenantId}, 'James', 'Wilson',
       'Exterior Painting',
       ${`456 Elm Drive, ${cityLine}`},
       'Demo Lead — not a real customer',
@@ -394,7 +402,7 @@ async function generateDemoData(userId: number) {
       "projectDescription", stage, source, "estimatedValue",
       "isDemo", "demoExpiresAt", "createdBy", "createdAt", "updatedAt"
     ) VALUES (
-      1, 'Sarah', 'Chen',
+      ${tenantId}, 'Sarah', 'Chen',
       'Cabinet Refinishing',
       ${`789 Maple Court, ${cityLine}`},
       'Demo Lead — not a real customer',
@@ -413,7 +421,7 @@ async function generateDemoData(userId: number) {
         "dueDate", "paidAt", notes,
         "isDemo", "demoExpiresAt", "createdBy", "createdAt", "updatedAt"
       ) VALUES (
-        1, ${lead1Id}, 'DEMO-001',
+        ${tenantId}, ${lead1Id}, 'DEMO-001',
         ${JSON.stringify([{ description: "Interior Painting — Living Room", quantity: 1, unitPrice: 2400 }])}::jsonb,
         2400, 0, 2400, 'paid',
         now(), now(),
@@ -433,7 +441,7 @@ async function generateDemoData(userId: number) {
         status, notes, "smsSent", "emailSent",
         "isDemo", "demoExpiresAt", "createdBy", "createdAt", "updatedAt"
       ) VALUES (
-        1, ${lead1Id},
+        ${tenantId}, ${lead1Id},
         'Estimate — Johnson Residence (Demo)',
         ${appointmentDate.toISOString()}, '10:00 AM',
         'scheduled',

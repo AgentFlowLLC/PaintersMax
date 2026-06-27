@@ -178,7 +178,7 @@ export const dashboardRouter = router({
 
       // ── 2. Pipeline value ────────────────────────────────────────────────────
       const [pipelineValueRow] = await db
-        .select({ total: sql<string>`COALESCE(SUM(estimatedValue), 0)` })
+        .select({ total: sql<string>`COALESCE(SUM("estimatedValue"), 0)` })
         .from(leads)
         .where(leadsFilter);
       const pipelineValue = parseFloat(pipelineValueRow?.total ?? "0");

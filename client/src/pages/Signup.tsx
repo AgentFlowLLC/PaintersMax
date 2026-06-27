@@ -271,6 +271,7 @@ export default function Signup() {
   const [avatarUploadPreview, setAvatarUploadPreview] = useState<string | null>(null);
   const [cityInput, setCityInput] = useState("");
   const [showCityPopup, setShowCityPopup] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const [, navigate] = useLocation();
 
   const cityInputRef = useRef<HTMLInputElement>(null);
@@ -1037,24 +1038,33 @@ export default function Signup() {
                   It will come from <strong>mail.paintersmax.app</strong> and is clearly marked as a sample.
                 </p>
                 <Button
-                  onClick={() => {
+                  disabled={demoLoading}
+                  onClick={async () => {
                     const token = getAuthToken();
                     const headers: Record<string, string> = { "Content-Type": "application/json" };
                     if (token) headers["Authorization"] = `Bearer ${token}`;
-                    // Fire-and-forget: generate demo data + send sample quote email
-                    fetch("/api/onboarding/generate-demo", { method: "POST", headers })
-                      .catch(e => console.warn("[Demo] generate-demo failed:", e));
+                    setDemoLoading(true);
+                    try {
+                      // Wait for demo data (5-second timeout), then proceed regardless
+                      await Promise.race([
+                        fetch("/api/onboarding/generate-demo", { method: "POST", headers }),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000)),
+                      ]);
+                    } catch (e) {
+                      console.warn("[Demo] generate-demo failed or timed out:", e);
+                    }
                     // Fire-and-forget: mark onboarding complete + send welcome email
                     fetch("/api/onboarding/complete", {
                       method: "POST",
                       headers,
                       body: JSON.stringify({ business_email: form.businessEmail, company_name: form.companyName }),
                     }).catch(e => console.warn("[Onboarding] complete failed:", e));
+                    setDemoLoading(false);
                     setShowWowMoment(false);
                     setStep(6);
                   }}
                 >
-                  Got it — let's go →
+                  {demoLoading ? "Setting up your dashboard…" : "Got it — let's go →"}
                 </Button>
                 <p className="text-sm text-gray-500 text-center mt-3">
                   Check your spam folder if it doesn't arrive within 2 minutes.
