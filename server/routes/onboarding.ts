@@ -332,10 +332,13 @@ async function generateDemoData(userId: number, tenantId: number) {
 
   // Fetch the most complete profile row for this user
   const fetchProfile = async () => {
+    console.log("[Demo] Attempting profile fetch for userId:", userId, "type:", typeof userId);
     const rows = await db!.execute(
       sql`SELECT * FROM painter_profiles WHERE user_id = ${userId} ORDER BY signup_step DESC, id DESC LIMIT 1`
     );
-    return (rows as unknown as { rows: unknown[] }).rows?.[0] as Record<string, unknown> | null ?? null;
+    const profile = (rows as unknown as { rows: unknown[] }).rows?.[0] as Record<string, unknown> | null ?? null;
+    console.log("[Demo] fetchProfile result:", profile ? "FOUND id=" + profile.id : "NULL");
+    return profile;
   };
 
   let profile = await fetchProfile();
