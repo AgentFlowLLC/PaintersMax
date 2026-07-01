@@ -332,9 +332,9 @@ async function generateDemoData(userId: number, tenantId: number) {
 
   // Fetch the most complete profile row for this user
   const fetchProfile = async () => {
-    console.log("[Demo] Attempting profile fetch for userId:", userId, "type:", typeof userId);
+    console.log("[Demo] Attempting profile fetch for userId:", userId, "as number:", Number(userId), "type:", typeof userId);
     const rows = await db!.execute(
-      sql`SELECT * FROM painter_profiles WHERE user_id = ${userId} ORDER BY signup_step DESC, id DESC LIMIT 1`
+      sql`SELECT * FROM painter_profiles WHERE user_id = ${Number(userId)} ORDER BY signup_step DESC, id DESC LIMIT 1`
     );
     const profile = (rows as unknown as { rows: unknown[] }).rows?.[0] as Record<string, unknown> | null ?? null;
     console.log("[Demo] fetchProfile result:", profile ? "FOUND id=" + profile.id : "NULL");
@@ -655,7 +655,7 @@ export function registerOnboardingRoutes(app: Express): void {
       const user = await getAuthenticatedUser(req);
       if (!user) return res.status(401).json({ error: "Unauthorized" });
       const tenantId = (req as any)?.tenant?.id ?? 1;
-      await generateDemoData(user.id, tenantId);
+      await generateDemoData(Number(user.id), tenantId);
       return res.json({ success: true });
     } catch (err) {
       console.error("[Demo] generate-demo error:", err);
