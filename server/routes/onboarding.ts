@@ -71,8 +71,10 @@ async function getPainterProfile(userId: number) {
 }
 
 async function upsertPainterProfile(userId: number, data: Record<string, unknown>) {
+  console.log("[Upsert] Called with userId:", userId, "type:", typeof userId);
   const db = await getDb();
   if (!db) return null;
+  const uid = Number(userId);
   const signupStep = (data.signup_step as number) ?? null;
 
   await db.execute(sql`
@@ -85,7 +87,7 @@ async function upsertPainterProfile(userId: number, data: Record<string, unknown
       signup_step, signup_updated_at,
       onboarding_completed, created_at, updated_at
     ) VALUES (
-      ${userId},
+      ${uid},
       ${(data.company_name as string) ?? ''},
       ${(data.phone as string) ?? ''},
       ${(data.business_email as string) ?? ''},
@@ -132,7 +134,7 @@ async function upsertPainterProfile(userId: number, data: Record<string, unknown
       updated_at        = now()
   `);
 
-  return getPainterProfile(userId);
+  return getPainterProfile(uid);
 }
 
 async function markOnboardingComplete(userId: number) {
@@ -536,7 +538,7 @@ export function registerOnboardingRoutes(app: Express): void {
         signup_step,
       } = req.body as Record<string, unknown>;
 
-      const profile = await upsertPainterProfile(user.id, {
+      const profile = await upsertPainterProfile(Number(user.id), {
         company_name,
         phone,
         business_email,
