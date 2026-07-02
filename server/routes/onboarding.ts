@@ -332,13 +332,18 @@ async function generateDemoData(userId: number, tenantId: number) {
 
   // Fetch the most complete profile row for this user
   const fetchProfile = async () => {
-    console.log("[Demo] Attempting profile fetch for userId:", userId, "as number:", Number(userId), "type:", typeof userId);
-    const rows = await db!.execute(
-      sql`SELECT * FROM painter_profiles WHERE user_id = ${Number(userId)} ORDER BY signup_step DESC, id DESC LIMIT 1`
-    );
-    const profile = (rows as unknown as { rows: unknown[] }).rows?.[0] as Record<string, unknown> | null ?? null;
-    console.log("[Demo] fetchProfile result:", profile ? "FOUND id=" + profile.id : "NULL");
-    return profile;
+    try {
+      console.log("[Demo] Attempting DB fetch for userId:", Number(userId), "type:", typeof userId);
+      const rows = await db!.execute(
+        sql`SELECT * FROM painter_profiles WHERE user_id = ${Number(userId)} ORDER BY signup_step DESC, id DESC LIMIT 1`
+      );
+      const result = ((rows as unknown as { rows: unknown[] }).rows ?? [])[0] as Record<string, unknown> | null ?? null;
+      console.log("[Demo] fetchProfile result:", result ? "FOUND id=" + result.id : "NULL - zero rows returned");
+      return result;
+    } catch (error) {
+      console.error("[Demo] fetchProfile DATABASE ERROR:", error instanceof Error ? error.message : String(error));
+      return null;
+    }
   };
 
   let profile = await fetchProfile();
