@@ -26,7 +26,13 @@ let _db: ReturnType<typeof drizzle> | null = null;
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      const client = postgres(process.env.DATABASE_URL, { ssl: "require" });
+      const client = postgres(process.env.DATABASE_URL, {
+        ssl: "require",
+        prepare: false,        // REQUIRED for Supabase Transaction Pooler (port 6543)
+        max: 1,                // one connection per serverless instance — pooler handles the rest
+        idle_timeout: 20,      // seconds — release unused connections quickly
+        connect_timeout: 10,   // seconds — fail fast instead of hanging (matches CONNECT_TIMEOUT symptom)
+      });
       _db = drizzle(client);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
