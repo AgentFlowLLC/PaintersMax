@@ -67,7 +67,7 @@ async function getPainterProfile(userId: number) {
   const rows = await db.execute(
     sql`SELECT * FROM painter_profiles WHERE user_id = ${userId} ORDER BY signup_step DESC, id DESC LIMIT 1`
   );
-  return (rows as unknown as { rows: unknown[] }).rows?.[0] ?? null;
+  return (rows as unknown as unknown[])[0] as Record<string, unknown> ?? null;
 }
 
 async function upsertPainterProfile(userId: number, data: Record<string, unknown>) {
@@ -339,7 +339,7 @@ async function generateDemoData(userId: number, tenantId: number) {
       const rows = await db!.execute(
         sql`SELECT * FROM painter_profiles WHERE user_id = ${Number(userId)} ORDER BY signup_step DESC, id DESC LIMIT 1`
       );
-      const result = ((rows as unknown as { rows: unknown[] }).rows ?? [])[0] as Record<string, unknown> | null ?? null;
+      const result = (rows as unknown as unknown[])[0] as Record<string, unknown> ?? null;
       console.log("[Demo] fetchProfile result:", result ? "FOUND id=" + result.id : "NULL - zero rows returned");
       return result;
     } catch (error) {
@@ -400,7 +400,7 @@ async function generateDemoData(userId: number, tenantId: number) {
       ${userId}, now(), now()
     ) RETURNING id
   `);
-  const lead1Id = ((lead1Row as unknown as { rows: { id: number }[] }).rows)?.[0]?.id;
+  const lead1Id = (lead1Row as unknown as { id: number }[])[0]?.id;
   console.log("[Demo] Lead 1 inserted successfully", { lead1Id });
 
   await db.execute(sql`
