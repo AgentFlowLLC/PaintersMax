@@ -413,7 +413,7 @@ async function generateDemoData(userId: number, tenantId: number) {
       'Exterior Painting',
       ${`456 Elm Drive, ${cityLine}`},
       'Demo Lead — not a real customer',
-      'contacted', 'demo', 4500,
+      'lead', 'demo', 4500,
       now(), true, ${expiresAt.toISOString()},
       ${userId}, now(), now()
     )
