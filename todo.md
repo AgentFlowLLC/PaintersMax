@@ -380,3 +380,28 @@
 - [x] Step 5: Clear old migration SQL files from drizzle/ folder
 - [x] Step 6: Install dependencies and generate/apply fresh PostgreSQL migrations
 - [x] Step 7: Run Vitest test suite and confirm all 120 tests pass
+
+## Tenant Isolation — Follow-up (from chunk-3-demo-data session, July 2026)
+
+- [ ] Design tenant identification for pre-auth/public endpoints — settings.ts 
+      `getBranding` hardcodes tenantId=1 since there's no logged-in user yet. 
+      Needs a strategy: subdomain, query param, or header.
+- [ ] Remove `?? 1` fallback safety nets in service layer (server/db.ts:279, 
+      services/crew.ts:38,41, services/blog.ts:99, services/sms.ts:162) — 
+      routers now pass real tenantId, so these should throw instead of 
+      silently defaulting if ever called without one.
+- [ ] Fix publicLeads.ts — painter's embedded website lead-capture form 
+      currently stamps all leads with tenantId=1. Needs a signed token or 
+      similar mechanism per painter's embed.
+- [ ] Fix smsWebhook.ts — inbound Twilio SMS replies all route to tenantId=1. 
+      Needs lookup: which painter's Twilio number received this → their 
+      tenantId. Low priority — Twilio not active yet.
+- [ ] demoRequest.ts public contact form hardcodes tenantId=1 — decide if 
+      this should route to a system/sales inbox instead of a tenant.
+- [ ] Remove `.default(1)` from 12 schema columns (leads, invoices, 
+      appointments, crew_members, email_templates, automation_rules, 
+      communication_log, conversations, blog_posts, blog_images, job_photos, 
+      attachments) — bundle into the Chunk 3.5 Drizzle migration.
+- [ ] Update stale comment in context.ts:56 — claims a tenantMiddleware 
+      exists in server/_core/index.ts; it doesn't. Rewrite to reflect that 
+      tenantId now comes from ctx.user.id directly.
