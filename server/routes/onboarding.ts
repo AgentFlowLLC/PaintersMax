@@ -661,7 +661,7 @@ export function registerOnboardingRoutes(app: Express): void {
     try {
       const user = await getAuthenticatedUser(req);
       if (!user) return res.status(401).json({ error: "Unauthorized" });
-      const tenantId = (req as any)?.tenant?.id ?? 1;
+      const tenantId = user.id;
       await generateDemoData(Number(user.id), tenantId);
       return res.json({ success: true });
     } catch (err) {
