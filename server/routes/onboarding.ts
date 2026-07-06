@@ -382,7 +382,7 @@ async function generateDemoData(userId: number, tenantId: number) {
   const state = serviceCities?.[0]?.state?.trim() || "";
   const cityLine = state ? `${city}, ${state}` : city;
 
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
 
   // ── Insert 3 demo leads ──────────────────────────────────────────────────────
   const lead1Row = await db.execute(sql`
@@ -654,7 +654,7 @@ export function registerOnboardingRoutes(app: Express): void {
    * POST /api/onboarding/generate-demo
    * Body: (none — user resolved from JWT)
    * Creates 3 demo leads, 1 demo invoice, 1 demo appointment, sends sample quote email.
-   * All records marked is_demo=true with a 30-day expiry for Chunk 5 cleanup.
+   * All records marked is_demo=true with a 5-day expiry for Chunk 5 cleanup.
    * Returns: { success: true }
    */
   app.post("/api/onboarding/generate-demo", async (req: Request, res: Response) => {

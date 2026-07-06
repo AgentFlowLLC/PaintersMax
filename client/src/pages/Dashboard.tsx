@@ -186,7 +186,7 @@ export default function Dashboard() {
         <div className="relative flex items-start gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
           <span className="mt-0.5">🎯</span>
           <p className="flex-1">
-            Your dashboard includes <strong>3 sample leads</strong> to help you get familiar — they'll disappear after 30 days.
+            Your dashboard includes <strong>3 sample leads</strong> to help you get familiar — they'll disappear after 5 days.
             Add your first real lead anytime using the button above.
           </p>
           <button
