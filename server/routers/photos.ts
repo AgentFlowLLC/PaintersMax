@@ -35,7 +35,7 @@ export const photosRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       const buffer = Buffer.from(input.base64Data, "base64");
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
 
       if (buffer.byteLength > MAX_FILE_SIZE_BYTES) {
         throw new TRPCError({
@@ -73,7 +73,7 @@ export const photosRouter = router({
       })
     )
     .query(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       return listPhotos(input.leadId, input.type, tenantId);
     }),
 
@@ -81,7 +81,7 @@ export const photosRouter = router({
   byLead: protectedProcedure
     .input(z.object({ leadId: z.number().int().positive() }))
     .query(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       return getPhotosByLead(input.leadId, tenantId);
     }),
 
@@ -106,7 +106,7 @@ export const photosRouter = router({
   delete: protectedProcedure
     .input(z.object({ photoId: z.number().int().positive() }))
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const result = await deletePhoto(input.photoId, tenantId);
       if (!result.success) {
         throw new TRPCError({

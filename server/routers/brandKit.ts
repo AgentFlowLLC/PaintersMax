@@ -7,7 +7,7 @@ import { eq, and } from "drizzle-orm";
 export const brandKitRouter = router({
   // ─── Read brand-kit fields for the current tenant ─────────────────────────
   get: protectedProcedure.query(async ({ ctx }) => {
-    const tenantId = ctx.req?.tenant?.id ?? 1;
+    const tenantId = ctx.user.id;
     const db = await getDb();
     const empty = {
       companyName: null as string | null,
@@ -45,7 +45,7 @@ export const brandKitRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 

@@ -35,7 +35,7 @@ export const settingsRouter = router({
 
   // ─── Protected: get full settings ────────────────────────────────────────────
   get: protectedProcedure.query(async ({ ctx }) => {
-    const tenantId = ctx.req?.tenant?.id ?? 1;
+    const tenantId = ctx.user.id;
     const db = await getDb();
     const empty = {
       companyName: null, companyEmail: null, reviewLink: null,
@@ -130,7 +130,7 @@ export const settingsRouter = router({
       linkedinEnabled: z.boolean().optional(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       const rows = await db.select().from(appSettings).where(eq(appSettings.tenantId, tenantId)).limit(1);
@@ -238,7 +238,7 @@ export const settingsRouter = router({
       originalName: z.string().max(300),
     }))
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
@@ -266,7 +266,7 @@ export const settingsRouter = router({
 
   // ─── Protected: remove logo ───────────────────────────────────────────────────
   removeLogo: protectedProcedure.mutation(async ({ ctx }) => {
-    const tenantId = ctx.req?.tenant?.id ?? 1;
+    const tenantId = ctx.user.id;
     const db = await getDb();
     if (!db) throw new Error("Database not available");
     const rows = await db.select().from(appSettings).where(eq(appSettings.tenantId, tenantId)).limit(1);

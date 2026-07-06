@@ -51,7 +51,7 @@ export const appointmentsRouter = router({
       const db = await getDb();
       if (!db) return [];
 
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
 
       // Build where conditions
       const conditions = [eq(appointments.tenantId, tenantId)];
@@ -113,7 +113,7 @@ export const appointmentsRouter = router({
     .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return [];
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       return db
         .select()
         .from(appointments)
@@ -127,7 +127,7 @@ export const appointmentsRouter = router({
     .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return null;
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const rows = await db
         .select()
         .from(appointments)
@@ -155,7 +155,7 @@ export const appointmentsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       return createAppointment({
         ...input,
         tenantId: tenantId,
@@ -180,7 +180,7 @@ export const appointmentsRouter = router({
       const db = await getDb();
       if (!db) throw new Error("DB not available");
 
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       // Verify appointment belongs to tenant before updating
       const appt = await db
         .select()
@@ -204,7 +204,7 @@ export const appointmentsRouter = router({
       const db = await getDb();
       if (!db) throw new Error("DB not available");
 
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       // Verify appointment belongs to tenant before cancelling
       const appt = await db
         .select()
@@ -226,7 +226,7 @@ export const appointmentsRouter = router({
       const db = await getDb();
       if (!db) return [];
 
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const now = new Date();
       const future = new Date(now.getTime() + input.days * 24 * 60 * 60 * 1000);
 
@@ -274,7 +274,7 @@ export const appointmentsRouter = router({
   sendReminder: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const result = await sendAppointmentReminder(input.id, tenantId);
       return result;
     }),

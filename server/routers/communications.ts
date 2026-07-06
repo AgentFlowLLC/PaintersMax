@@ -25,7 +25,7 @@ export const communicationsRouter = router({
         .optional()
     )
     .query(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const logs = await getCommunicationLog({ ...input, tenantId });
       // Enrich with lead info
       const leadIds = Array.from(new Set(logs.map((l) => l.leadId)));
@@ -53,7 +53,7 @@ export const communicationsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       await createCommunicationLogEntry({
         ...input,
         tenantId,
@@ -68,7 +68,7 @@ export const attachmentsRouter = router({
   list: protectedProcedure
     .input(z.object({ leadId: z.number() }))
     .query(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       return getAttachmentsByLeadId(input.leadId, tenantId);
     }),
 
@@ -83,7 +83,7 @@ export const attachmentsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const suffix = nanoid(8);
       const fileKey = `crm/leads/${input.leadId}/${suffix}-${input.fileName}`;
       const buffer = Buffer.from(input.base64Data, "base64");
@@ -106,7 +106,7 @@ export const attachmentsRouter = router({
   delete: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       await deleteAttachment(input.id, tenantId);
       return { success: true };
     }),

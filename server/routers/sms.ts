@@ -27,7 +27,7 @@ export const smsRouter = router({
     .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return [];
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const rows = await db
         .select()
         .from(conversations)
@@ -49,7 +49,7 @@ export const smsRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const result = await sendSMS(
         input.to,
         input.message,
@@ -73,7 +73,7 @@ export const smsRouter = router({
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return { success: false };
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       await db
         .update(conversations)
         .set({ read: true })
@@ -88,7 +88,7 @@ export const smsRouter = router({
   getUnreadCount: protectedProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) return 0;
-    const tenantId = ctx.req?.tenant?.id ?? 1;
+    const tenantId = ctx.user.id;
     const [result] = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(conversations)
@@ -103,7 +103,7 @@ export const smsRouter = router({
   markAllRead: protectedProcedure.mutation(async ({ ctx }) => {
     const db = await getDb();
     if (!db) return { success: false };
-    const tenantId = ctx.req?.tenant?.id ?? 1;
+    const tenantId = ctx.user.id;
     await db
       .update(conversations)
       .set({ read: true })

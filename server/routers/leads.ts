@@ -72,7 +72,7 @@ export const leadsRouter = router({
       const db = await getDb();
       if (!db) return [];
 
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       let query = db.select().from(leads).$dynamic();
 
       const conditions = [eq(leads.tenantId, tenantId)];
@@ -108,7 +108,7 @@ export const leadsRouter = router({
     const db = await getDb();
     if (!db) return stages;
 
-    const tenantId = ctx.req?.tenant?.id ?? 1;
+    const tenantId = ctx.user.id;
     const all = await db
       .select()
       .from(leads)
@@ -127,7 +127,7 @@ export const leadsRouter = router({
       const db = await getDb();
       if (!db) return undefined;
 
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const result = await db
         .select()
         .from(leads)
@@ -139,7 +139,7 @@ export const leadsRouter = router({
   create: protectedProcedure
     .input(leadInput)
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const data = {
         ...input,
         estimatedValue: input.estimatedValue || undefined,
@@ -222,7 +222,7 @@ export const leadsRouter = router({
       const db = await getDb();
       // Only verify tenant ownership if DB is available
       if (db) {
-        const tenantId = ctx.req?.tenant?.id ?? 1;
+        const tenantId = ctx.user.id;
         const lead = await db
           .select()
           .from(leads)
@@ -249,7 +249,7 @@ export const leadsRouter = router({
 
       // Only verify tenant ownership if DB is available
       if (db) {
-        const tenantId = ctx.req?.tenant?.id ?? 1;
+        const tenantId = ctx.user.id;
         const leadResult = await db
           .select()
           .from(leads)
@@ -282,7 +282,7 @@ export const leadsRouter = router({
       });
 
       // Fire automation rules
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const rules = await getRulesByTriggerStage(input.stage, tenantId);
       for (const rule of rules) {
         if (rule.delayHours && rule.delayHours > 0) continue; // Skip delayed for now
@@ -399,7 +399,7 @@ export const leadsRouter = router({
       const db = await getDb();
       // Only verify tenant ownership if DB is available
       if (db) {
-        const tenantId = ctx.req?.tenant?.id ?? 1;
+        const tenantId = ctx.user.id;
         const lead = await db
           .select()
           .from(leads)

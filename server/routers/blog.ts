@@ -19,7 +19,7 @@ import { storagePut } from "../storage";
 export const blogRouter = router({
   /** Admin: list all posts (all statuses) */
   listAll: protectedProcedure.query(async ({ ctx }) => {
-    const tenantId = (ctx.req?.tenant ?? null)?.id ?? 1;
+    const tenantId = ctx.user.id;
     return listAllPosts(tenantId);
   }),
 
@@ -41,7 +41,7 @@ export const blogRouter = router({
   getById: protectedProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
-      const tenantId = (ctx.req?.tenant ?? null)?.id ?? 1;
+      const tenantId = ctx.user.id;
       const post = await getPostById(input.id, tenantId);
       if (!post) throw new TRPCError({ code: "NOT_FOUND", message: "Post not found" });
       return post;
@@ -65,7 +65,7 @@ export const blogRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const tenantId = (ctx.req?.tenant ?? null)?.id ?? 1;
+      const tenantId = ctx.user.id;
       return createPost({ ...input, tenantId });
     }),
 
@@ -88,7 +88,7 @@ export const blogRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const tenantId = (ctx.req?.tenant ?? null)?.id ?? 1;
+      const tenantId = ctx.user.id;
       const { id, ...data } = input;
       await updatePost(id, data, tenantId);
       return { success: true };
@@ -98,7 +98,7 @@ export const blogRouter = router({
   delete: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      const tenantId = (ctx.req?.tenant ?? null)?.id ?? 1;
+      const tenantId = ctx.user.id;
       await deletePost(input.id, tenantId);
       return { success: true };
     }),
@@ -123,7 +123,7 @@ export const blogRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const tenantId = (ctx.req?.tenant ?? null)?.id ?? 1;
+      const tenantId = ctx.user.id;
       const buffer = Buffer.from(input.imageBase64, "base64");
       const suffix = Math.random().toString(36).substring(2, 10);
       const key = `blog/${input.postId}/${suffix}-${input.filename}`;
@@ -142,7 +142,7 @@ export const blogRouter = router({
   deleteImage: protectedProcedure
     .input(z.object({ imageId: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      const tenantId = (ctx.req?.tenant ?? null)?.id ?? 1;
+      const tenantId = ctx.user.id;
       await deletePostImage(input.imageId, tenantId);
       return { success: true };
     }),

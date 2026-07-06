@@ -37,7 +37,7 @@ export const crewRouter = router({
       }).optional()
     )
     .query(async ({ input, ctx }) => {
-      const tenantId = (ctx.req?.tenant ?? null)?.id ?? 1;
+      const tenantId = ctx.user.id;
       return listCrewMembers(input?.status ?? "all", tenantId);
     }),
 
@@ -45,7 +45,7 @@ export const crewRouter = router({
   get: protectedProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
-      const tenantId = (ctx.req?.tenant ?? null)?.id ?? 1;
+      const tenantId = ctx.user.id;
       return getCrewMember(input.id, tenantId);
     }),
 
@@ -53,7 +53,7 @@ export const crewRouter = router({
   create: protectedProcedure
     .input(crewMemberSchema)
     .mutation(async ({ input, ctx }) => {
-      const tenantId = (ctx.req?.tenant ?? null)?.id ?? 1;
+      const tenantId = ctx.user.id;
       return createCrewMember({
         name: input.name,
         phone: input.phone ?? null,
@@ -73,7 +73,7 @@ export const crewRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const tenantId = (ctx.req?.tenant ?? null)?.id ?? 1;
+      const tenantId = ctx.user.id;
       const update: Record<string, unknown> = {};
       if (input.data.name !== undefined) update.name = input.data.name;
       if (input.data.phone !== undefined) update.phone = input.data.phone ?? null;
@@ -87,7 +87,7 @@ export const crewRouter = router({
   deactivate: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      const tenantId = (ctx.req?.tenant ?? null)?.id ?? 1;
+      const tenantId = ctx.user.id;
       return deactivateCrewMember(input.id, tenantId);
     }),
 
@@ -95,7 +95,7 @@ export const crewRouter = router({
   reactivate: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      const tenantId = (ctx.req?.tenant ?? null)?.id ?? 1;
+      const tenantId = ctx.user.id;
       return reactivateCrewMember(input.id, tenantId);
     }),
 });

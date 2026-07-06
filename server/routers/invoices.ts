@@ -116,7 +116,7 @@ export const invoicesRouter = router({
       const db = await getDb();
       if (!db) return [];
 
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
 
       let rows;
       if (input?.leadId && input?.status) {
@@ -183,7 +183,7 @@ export const invoicesRouter = router({
     .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return [];
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       return db
         .select()
         .from(invoices)
@@ -197,7 +197,7 @@ export const invoicesRouter = router({
     .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return null;
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const rows = await db
         .select()
         .from(invoices)
@@ -221,7 +221,7 @@ export const invoicesRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       return generateInvoice({
         ...input,
         tenantId: tenantId,
@@ -246,7 +246,7 @@ export const invoicesRouter = router({
       const db = await getDb();
       // Only verify tenant ownership if DB is available
       if (db) {
-        const tenantId = ctx.req?.tenant?.id ?? 1;
+        const tenantId = ctx.user.id;
         const inv = await db
           .select()
           .from(invoices)
@@ -274,7 +274,7 @@ export const invoicesRouter = router({
       const db = await getDb();
       // Only verify tenant ownership if DB is available
       if (db) {
-        const tenantId = ctx.req?.tenant?.id ?? 1;
+        const tenantId = ctx.user.id;
         const inv = await db
           .select()
           .from(invoices)
@@ -305,7 +305,7 @@ export const invoicesRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const rows = await db
         .select()
         .from(invoices)
@@ -357,7 +357,7 @@ export const invoicesRouter = router({
     .query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) return 0;
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const rows = await db
         .select({ cnt: count() })
         .from(invoices)
@@ -372,7 +372,7 @@ export const invoicesRouter = router({
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       const rows = await db
         .select()
         .from(invoices)

@@ -32,14 +32,14 @@ const triggerTypeEnum = z.enum([
 
 export const emailTemplatesRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
-    const tenantId = ctx.req?.tenant?.id ?? 1;
+    const tenantId = ctx.user.id;
     return getEmailTemplates(tenantId);
   }),
 
   byId: protectedProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       return getEmailTemplateById(input.id, tenantId);
     }),
 
@@ -54,7 +54,7 @@ export const emailTemplatesRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       await createEmailTemplate({ ...input, tenantId });
       return { success: true };
     }),
@@ -73,7 +73,7 @@ export const emailTemplatesRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       await updateEmailTemplate(input.id, input.data, tenantId);
       return { success: true };
     }),
@@ -81,7 +81,7 @@ export const emailTemplatesRouter = router({
   delete: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       await deleteEmailTemplate(input.id, tenantId);
       return { success: true };
     }),
@@ -89,7 +89,7 @@ export const emailTemplatesRouter = router({
 
 export const automationRulesRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
-    const tenantId = ctx.req?.tenant?.id ?? 1;
+    const tenantId = ctx.user.id;
     const rules = await getAutomationRules(tenantId);
     const templates = await (async () => {
       const { getEmailTemplates } = await import("../db");
@@ -105,7 +105,7 @@ export const automationRulesRouter = router({
   byId: protectedProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       return getAutomationRuleById(input.id, tenantId);
     }),
 
@@ -121,7 +121,7 @@ export const automationRulesRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       await createAutomationRule({ ...input, tenantId });
       return { success: true };
     }),
@@ -141,7 +141,7 @@ export const automationRulesRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       await updateAutomationRule(input.id, input.data, tenantId);
       return { success: true };
     }),
@@ -149,7 +149,7 @@ export const automationRulesRouter = router({
   delete: protectedProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
-      const tenantId = ctx.req?.tenant?.id ?? 1;
+      const tenantId = ctx.user.id;
       await deleteAutomationRule(input.id, tenantId);
       return { success: true };
     }),
