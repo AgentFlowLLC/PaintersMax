@@ -405,3 +405,44 @@
 - [ ] Update stale comment in context.ts:56 — claims a tenantMiddleware 
       exists in server/_core/index.ts; it doesn't. Rewrite to reflect that 
       tenantId now comes from ctx.user.id directly.
+
+      ## Demo Data Cleanup Job — Missing (found during Chunk 3, July 2026)
+
+- [ ] Build the actual cleanup job for expired demo data. Currently 
+      `demoExpiresAt` is written to every demo lead/invoice/appointment 
+      on creation (now set to 5 days), but NOTHING in the codebase ever 
+      reads that field to delete or hide expired records. The dashboard 
+      banner promises data "disappears" — it doesn't, yet. This has been 
+      true since Chunk 3 was first built (previously said 30 days, same 
+      gap existed then too).
+- [ ] Needs: a scheduled job (Vercel Cron or similar) that runs 
+      periodically and deletes/archives rows where isDemo = true AND 
+      demoExpiresAt < now(), across leads, invoices, and appointments.
+- [ ] Referenced in migration comment: drizzle/manus-migrations/
+      0030_demo_data_fields.sql:3 says "auto-expiry after 30 days" — 
+      update this comment to 5 days once the real cleanup job exists, 
+      for documentation accuracy (comment-only, doesn't affect schema).
+- [ ] Not blocking Chunk 3 merge — demo data existing indefinitely isn't 
+      harmful today (clearly labeled "Sample Data" per design), but 
+      should be built before real customer volume makes stale demo 
+      records clutter dashboards.
+
+      ## Found during Chunk 3 final checklist (July 6, 2026) — not blocking, backlog
+
+- [ ] seedDefaultTemplates() intermittently hits Supabase pooler CONNECT_TIMEOUT 
+      — same root cause as the earlier onboarding.ts fix, but this function wasn't 
+      touched. Consider whether it needs the same connection handling, or whether 
+      it should retry/fail silently instead of surfacing an error.
+- [ ] /api/trpc/settings.getProfile returns 404 — procedure appears to not exist 
+      in server/routers/settings.ts. Frontend is calling a name that was likely 
+      renamed or never implemented. Needs a quick grep + fix, unrelated to 
+      tenantId work.
+- [ ] Google Maps JavaScript API loaded without loading=async param — performance 
+      warning only, not an error. Low priority.
+- [ ] Google Maps URIError: URI malformed — pre-existing, matches known issue in 
+      project docs ("Google Maps not rendering — API restriction — parked, fix 
+      when adding clients"). Already tracked.
+
+      - [ ] Settings.tsx:457 — API key password input isn't wrapped in a <form> 
+      tag, triggering a Chrome DOM warning (no functional impact, just 
+      missing autofill/password-manager support). Low priority cosmetic fix.
