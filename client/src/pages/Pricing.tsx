@@ -1,16 +1,21 @@
 /**
  * Pricing.tsx — Subscription pricing page at /pricing
  *
- * Displays 3 tier cards: Starter, Professional, Agency
- * - No hardcoded prices — prices are managed in Stripe dashboard only
- * - Subscribe button calls /api/create-checkout
- * - "Current Plan" badge on active tier
- * - "Manage Subscription" button calls /api/create-portal-session
+ * Displays 3 tier cards: Starter, Pro, Max
+ * - Starter/Pro are self-serve with a monthly/annual toggle. Prices are
+ *   PLACEHOLDER values from shared/pricing.ts — not final.
+ * - Max is not self-serve — it routes to a Calendly discovery call.
+ * - Annual billing requires reading and agreeing to a dedicated contract
+ *   disclosure screen before the Stripe redirect fires.
+ * - Subscribe creates a Stripe Checkout session via trpc.subscription.createCheckoutSession.
+ * - "Current Plan" badge on active tier.
  */
 import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { useSubscription, SubscriptionTier } from "@/hooks/useSubscription";
+import { useSubscription } from "@/hooks/useSubscription";
+import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -20,16 +25,27 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Crown, Rocket, Building2, ExternalLink, Loader2 } from "lucide-react";
+import { Check, Crown, Rocket, Building2, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import {
+  PLACEHOLDER_MONTHLY_PRICE_CENTS,
+  getAnnualPriceCents,
+  type SelfServeTier,
+  type BillingInterval,
+} from "@shared/pricing";
+
+// PLACEHOLDER — replace once the Calendly account for Max-tier discovery
+// calls is set up (see SKILL-paintersmax.md backlog).
+const MAX_TIER_CALENDLY_URL = "https://calendly.com/paintersmax/discovery-call";
 
 interface TierCard {
-  id: SubscriptionTier;
+  id: SelfServeTier | "agency";
   name: string;
   description: string;
   icon: React.ReactNode;
   features: string[];
   highlight?: boolean;
+  selfServe: boolean;
 }
 
 const TIERS: TierCard[] = [
@@ -43,12 +59,12 @@ const TIERS: TierCard[] = [
       "1 marketing template",
       "Up to 50 leads/month",
       "Email support",
-      "14-day free trial",
     ],
+    selfServe: true,
   },
   {
     id: "professional",
-    name: "Professional",
+    name: "Pro",
     description: "For growing painting businesses that need the full toolkit",
     icon: <Crown className="h-6 w-6" />,
     features: [
@@ -60,30 +76,45 @@ const TIERS: TierCard[] = [
       "Priority support",
     ],
     highlight: true,
+    selfServe: true,
   },
   {
     id: "agency",
-    name: "Agency",
+    name: "Max",
     description: "Enterprise-grade tools for multi-crew painting companies",
     icon: <Building2 className="h-6 w-6" />,
     features: [
-      "Everything in Professional",
+      "Everything in Pro",
       "White-label branding",
       "Custom domain support",
       "AI assistant",
-      "fal.ai color visualizer",
       "Dedicated support",
     ],
+    selfServe: false,
   },
 ];
+
+function formatPrice(cents: number): string {
+  return (cents / 100).toLocaleString("en-US", { minimumFractionDigits: 0 });
+}
+
+function formatRenewalDate(): string {
+  const renewal = new Date();
+  renewal.setFullYear(renewal.getFullYear() + 1);
+  return renewal.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+}
 
 export default function Pricing() {
   const { user } = useAuth();
   const { tier: currentTier, isLoading: subLoading } = useSubscription();
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
   const [loadingTier, setLoadingTier] = useState<string | null>(null);
-  const [portalLoading, setPortalLoading] = useState(false);
+  const [pendingAnnualTier, setPendingAnnualTier] = useState<SelfServeTier | null>(null);
+  const [annualAgreed, setAnnualAgreed] = useState(false);
 
-  async function handleSubscribe(tier: string) {
+  const createCheckoutSession = trpc.subscription.createCheckoutSession.useMutation();
+
+  async function startCheckout(tier: SelfServeTier, interval: BillingInterval) {
     if (!user) {
       toast.error("Please log in to subscribe");
       return;
@@ -91,22 +122,7 @@ export default function Pricing() {
 
     setLoadingTier(tier);
     try {
-      const response = await fetch("/api/create-checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          painter_id: user.id,
-          tier,
-          email: user.email,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create checkout session");
-      }
-
+      const data = await createCheckoutSession.mutateAsync({ tier, billingInterval: interval });
       if (data.url) {
         window.location.href = data.url;
       }
@@ -117,36 +133,82 @@ export default function Pricing() {
     }
   }
 
-  async function handleManageSubscription() {
-    if (!user) return;
-
-    setPortalLoading(true);
-    try {
-      const response = await fetch("/api/create-portal-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ painter_id: user.id }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create portal session");
-      }
-
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (error) {
-      toast.error((error as Error).message);
-    } finally {
-      setPortalLoading(false);
+  function handleSubscribe(tier: SelfServeTier) {
+    if (billingInterval === "annual") {
+      setAnnualAgreed(false);
+      setPendingAnnualTier(tier);
+      return;
     }
+    void startCheckout(tier, "monthly");
+  }
+
+  // ── Dedicated annual contract disclosure screen ──────────────────────────
+  if (pendingAnnualTier) {
+    const tier = pendingAnnualTier;
+    const tierLabel = tier === "starter" ? "Starter" : "Pro";
+    const annualTotal = formatPrice(getAnnualPriceCents(tier));
+
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-lg">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-6"
+          onClick={() => setPendingAnnualTier(null)}
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to plans
+        </Button>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-2xl">You're signing up for an Annual Plan</CardTitle>
+            <CardDescription>{tierLabel} plan — billed annually</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <ul className="space-y-3 text-sm">
+              <li>
+                You'll be billed <strong>${annualTotal} upfront</strong> for 12 months.
+              </li>
+              <li>This plan cannot be cancelled or refunded early.</li>
+              <li>
+                You can upgrade anytime, but cannot downgrade or cancel until your 12-month term
+                ends.
+              </li>
+              <li>
+                Your renewal date will be <strong>{formatRenewalDate()}</strong>.
+              </li>
+            </ul>
+
+            <div className="flex items-start gap-2 pt-2 border-t">
+              <Checkbox
+                id="annual-agree"
+                checked={annualAgreed}
+                onCheckedChange={(checked) => setAnnualAgreed(checked === true)}
+              />
+              <label htmlFor="annual-agree" className="text-sm leading-tight cursor-pointer">
+                I understand and agree to the 12-month commitment
+              </label>
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button
+              className="w-full"
+              disabled={!annualAgreed || loadingTier === tier}
+              onClick={() => void startCheckout(tier, "annual")}
+            >
+              {loadingTier === tier ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Continue to Payment →
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
   }
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="text-center mb-10">
+      <div className="text-center mb-8">
         <h1 className="text-3xl font-bold tracking-tight mb-2">
           Choose Your Plan
         </h1>
@@ -155,12 +217,36 @@ export default function Pricing() {
         </p>
       </div>
 
+      <div className="flex justify-center mb-10">
+        <div className="inline-flex rounded-lg border p-1 bg-muted/50">
+          <Button
+            variant={billingInterval === "monthly" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setBillingInterval("monthly")}
+          >
+            Monthly
+          </Button>
+          <Button
+            variant={billingInterval === "annual" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setBillingInterval("annual")}
+          >
+            Annual (2 months free)
+          </Button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {TIERS.map((tierCard) => {
           const isCurrentPlan = currentTier === tierCard.id;
-          const isHigher =
-            ["starter", "professional", "agency"].indexOf(tierCard.id) >
-            ["free", "starter", "professional", "agency"].indexOf(currentTier);
+          const tierOrder = ["free", "starter", "professional", "agency"];
+          const isHigher = tierOrder.indexOf(tierCard.id) > tierOrder.indexOf(currentTier);
+
+          const priceCents = tierCard.selfServe
+            ? billingInterval === "annual"
+              ? getAnnualPriceCents(tierCard.id as SelfServeTier)
+              : PLACEHOLDER_MONTHLY_PRICE_CENTS[tierCard.id as SelfServeTier]
+            : null;
 
           return (
             <Card
@@ -195,6 +281,14 @@ export default function Pricing() {
                 <CardDescription className="text-sm">
                   {tierCard.description}
                 </CardDescription>
+                {priceCents !== null && (
+                  <p className="text-2xl font-bold pt-2">
+                    ${formatPrice(priceCents)}
+                    <span className="text-sm font-normal text-muted-foreground">
+                      {billingInterval === "annual" ? "/year" : "/mo"}
+                    </span>
+                  </p>
+                )}
               </CardHeader>
 
               <CardContent className="flex-1">
@@ -209,24 +303,20 @@ export default function Pricing() {
               </CardContent>
 
               <CardFooter className="pt-4">
-                {isCurrentPlan ? (
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={handleManageSubscription}
-                    disabled={portalLoading}
-                  >
-                    {portalLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                    )}
-                    Manage Subscription
+                {!tierCard.selfServe ? (
+                  <Button asChild className="w-full" variant="outline">
+                    <a href={MAX_TIER_CALENDLY_URL} target="_blank" rel="noopener noreferrer">
+                      Book a Discovery Call
+                    </a>
+                  </Button>
+                ) : isCurrentPlan ? (
+                  <Button variant="outline" className="w-full" disabled>
+                    Current Plan
                   </Button>
                 ) : isHigher ? (
                   <Button
                     className="w-full"
-                    onClick={() => handleSubscribe(tierCard.id)}
+                    onClick={() => handleSubscribe(tierCard.id as SelfServeTier)}
                     disabled={loadingTier === tierCard.id || subLoading}
                   >
                     {loadingTier === tierCard.id ? (
@@ -244,27 +334,6 @@ export default function Pricing() {
           );
         })}
       </div>
-
-      {/* Manage subscription section for users with active plans */}
-      {currentTier !== "free" && (
-        <div className="text-center border-t pt-6">
-          <p className="text-sm text-muted-foreground mb-3">
-            Need to update your payment method or cancel?
-          </p>
-          <Button
-            variant="outline"
-            onClick={handleManageSubscription}
-            disabled={portalLoading}
-          >
-            {portalLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <ExternalLink className="h-4 w-4 mr-2" />
-            )}
-            Manage Subscription in Stripe
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

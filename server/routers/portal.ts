@@ -9,7 +9,7 @@
  */
 
 import { z } from "zod";
-import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
+import { paidProcedure, publicProcedure, router } from "../_core/trpc";
 import {
   generatePortalToken,
   buildPortalUrl,
@@ -35,7 +35,7 @@ export const portalRouter = router({
    * Protected — generate or retrieve the portal token for a lead.
    * Returns the full portal URL so the admin can copy/share it.
    */
-  generateToken: protectedProcedure
+  generateToken: paidProcedure
     .input(
       z.object({
         leadId: z.number(),
@@ -51,7 +51,7 @@ export const portalRouter = router({
   /**
    * Protected — get the existing portal URL for a lead (read-only, no generation).
    */
-  getToken: protectedProcedure
+  getToken: paidProcedure
     .input(
       z.object({
         leadId: z.number(),
@@ -81,7 +81,7 @@ export const portalRouter = router({
   /**
    * Protected — add a before/after/progress photo to the portal gallery.
    */
-  addPhoto: protectedProcedure
+  addPhoto: paidProcedure
     .input(
       z.object({
         leadId: z.number(),
@@ -101,7 +101,7 @@ export const portalRouter = router({
   /**
    * Protected — remove a photo from the portal gallery by URL.
    */
-  removePhoto: protectedProcedure
+  removePhoto: paidProcedure
     .input(
       z.object({
         leadId: z.number(),

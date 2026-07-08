@@ -42,6 +42,7 @@ const MOCK_USER = {
   createdAt: new Date(),
   updatedAt: new Date(),
   lastSignedIn: new Date(),
+  subscriptionStatus: "active",
 };
 
 const MOCK_MEMBER = {

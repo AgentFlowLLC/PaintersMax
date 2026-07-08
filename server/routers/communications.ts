@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { paidProcedure, router } from "../_core/trpc";
 import {
   createCommunicationLogEntry,
   getCommunicationLog,
@@ -12,7 +12,7 @@ import { storagePut } from "../storage";
 import { nanoid } from "nanoid";
 
 export const communicationsRouter = router({
-  list: protectedProcedure
+  list: paidProcedure
     .input(
       z
         .object({
@@ -42,7 +42,7 @@ export const communicationsRouter = router({
       }));
     }),
 
-  create: protectedProcedure
+  create: paidProcedure
     .input(
       z.object({
         leadId: z.number(),
@@ -65,14 +65,14 @@ export const communicationsRouter = router({
 });
 
 export const attachmentsRouter = router({
-  list: protectedProcedure
+  list: paidProcedure
     .input(z.object({ leadId: z.number() }))
     .query(async ({ input, ctx }) => {
       const tenantId = ctx.user.id;
       return getAttachmentsByLeadId(input.leadId, tenantId);
     }),
 
-  upload: protectedProcedure
+  upload: paidProcedure
     .input(
       z.object({
         leadId: z.number(),
@@ -103,7 +103,7 @@ export const attachmentsRouter = router({
       return { success: true, url };
     }),
 
-  delete: protectedProcedure
+  delete: paidProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       const tenantId = ctx.user.id;

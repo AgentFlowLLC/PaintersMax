@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, protectedProcedure } from "../_core/trpc";
+import { router, paidProcedure } from "../_core/trpc";
 import { invokeLLM } from "../_core/llm";
 
 const SYSTEM_PROMPT =
@@ -11,7 +11,7 @@ const SYSTEM_PROMPT =
   "growing a painting company. Keep all responses practical, professional, and focused on the painting industry.";
 
 export const aiRouter = router({
-  chat: protectedProcedure
+  chat: paidProcedure
     .input(
       z.object({
         messages: z.array(

@@ -449,9 +449,12 @@ async function handleSubscriptionUpdated(
   const db = await getDb();
   if (!db) return;
 
+  // Inline price_data checkout sessions (Chunk 4) don't use fixed Stripe Price
+  // IDs, so the subscription's own metadata (set at checkout) is the source
+  // of truth for tier. Fall back to the price-ID map for older subscriptions.
   const priceToTier = getPriceToTierMap();
   const priceId = subscription.items.data[0]?.price?.id;
-  const tier = priceToTier[priceId || ""] || "free";
+  const tier = subscription.metadata?.tier || priceToTier[priceId || ""] || "free";
   const status =
     subscription.status === "active" || subscription.status === "trialing"
       ? "active"

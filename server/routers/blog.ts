@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, publicProcedure, protectedProcedure } from "../_core/trpc";
+import { router, publicProcedure, paidProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import {
   listAllPosts,
@@ -18,7 +18,7 @@ import { storagePut } from "../storage";
 
 export const blogRouter = router({
   /** Admin: list all posts (all statuses) */
-  listAll: protectedProcedure.query(async ({ ctx }) => {
+  listAll: paidProcedure.query(async ({ ctx }) => {
     const tenantId = ctx.user.id;
     return listAllPosts(tenantId);
   }),
@@ -38,7 +38,7 @@ export const blogRouter = router({
     }),
 
   /** Admin: get a single post by ID */
-  getById: protectedProcedure
+  getById: paidProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
       const tenantId = ctx.user.id;
@@ -48,7 +48,7 @@ export const blogRouter = router({
     }),
 
   /** Admin: create a new post */
-  create: protectedProcedure
+  create: paidProcedure
     .input(
       z.object({
         title: z.string().min(1),
@@ -70,7 +70,7 @@ export const blogRouter = router({
     }),
 
   /** Admin: update an existing post */
-  update: protectedProcedure
+  update: paidProcedure
     .input(
       z.object({
         id: z.number(),
@@ -95,7 +95,7 @@ export const blogRouter = router({
     }),
 
   /** Admin: delete a post */
-  delete: protectedProcedure
+  delete: paidProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       const tenantId = ctx.user.id;
@@ -111,7 +111,7 @@ export const blogRouter = router({
     }),
 
   /** Admin: upload an image for a post */
-  uploadImage: protectedProcedure
+  uploadImage: paidProcedure
     .input(
       z.object({
         postId: z.number(),
@@ -139,7 +139,7 @@ export const blogRouter = router({
     }),
 
   /** Admin: delete a blog image */
-  deleteImage: protectedProcedure
+  deleteImage: paidProcedure
     .input(z.object({ imageId: z.number() }))
     .mutation(async ({ input, ctx }) => {
       const tenantId = ctx.user.id;
@@ -155,7 +155,7 @@ export const blogRouter = router({
     }),
 
   /** Admin: upload featured image */
-  uploadFeaturedImage: protectedProcedure
+  uploadFeaturedImage: paidProcedure
     .input(
       z.object({
         imageBase64: z.string(),

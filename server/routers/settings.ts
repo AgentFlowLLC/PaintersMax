@@ -1,4 +1,4 @@
-import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
+import { paidProcedure, publicProcedure, router } from "../_core/trpc";
 import { z } from "zod";
 import { getDb } from "../db";
 import { appSettings } from "../../drizzle/schema";
@@ -34,7 +34,7 @@ export const settingsRouter = router({
   }),
 
   // ─── Protected: get full settings ────────────────────────────────────────────
-  get: protectedProcedure.query(async ({ ctx }) => {
+  get: paidProcedure.query(async ({ ctx }) => {
     const tenantId = ctx.user.id;
     const db = await getDb();
     const empty = {
@@ -96,7 +96,7 @@ export const settingsRouter = router({
   }),
 
   // ─── Protected: update settings ──────────────────────────────────────────────
-  update: protectedProcedure
+  update: paidProcedure
     .input(z.object({
       companyName: z.string().optional(),
       companyEmail: z.string().optional(),
@@ -185,7 +185,7 @@ export const settingsRouter = router({
     }),
 
   // ─── Protected: test Stripe connection ───────────────────────────────────────
-  testStripeConnection: protectedProcedure
+  testStripeConnection: paidProcedure
     .input(z.object({
       secretKey: z.string().min(1),
     }))
@@ -231,7 +231,7 @@ export const settingsRouter = router({
     }),
 
   // ─── Protected: upload logo to S3 ────────────────────────────────────────────
-  uploadLogo: protectedProcedure
+  uploadLogo: paidProcedure
     .input(z.object({
       base64Data: z.string(),
       mimeType: z.string().regex(/^image\/(jpeg|png|gif|webp|svg\+xml)$/),
@@ -265,7 +265,7 @@ export const settingsRouter = router({
     }),
 
   // ─── Protected: remove logo ───────────────────────────────────────────────────
-  removeLogo: protectedProcedure.mutation(async ({ ctx }) => {
+  removeLogo: paidProcedure.mutation(async ({ ctx }) => {
     const tenantId = ctx.user.id;
     const db = await getDb();
     if (!db) throw new Error("Database not available");

@@ -12,7 +12,7 @@
  */
 
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { paidProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { appointments, leads } from "../../drizzle/schema";
 import { eq, gte, lte, and, desc, asc } from "drizzle-orm";
@@ -39,7 +39,7 @@ export const appointmentsRouter = router({
    * List all appointments, optionally filtered by a date range (week view).
    * Returns appointments joined with basic lead info for display.
    */
-  list: protectedProcedure
+  list: paidProcedure
     .input(
       z.object({
         from: z.date().optional(),
@@ -108,7 +108,7 @@ export const appointmentsRouter = router({
     }),
 
   /** Get all appointments for a specific lead */
-  byLead: protectedProcedure
+  byLead: paidProcedure
     .input(z.object({ leadId: z.number() }))
     .query(async ({ input, ctx }) => {
       const db = await getDb();
@@ -122,7 +122,7 @@ export const appointmentsRouter = router({
     }),
 
   /** Get a single appointment by ID */
-  byId: protectedProcedure
+  byId: paidProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
       const db = await getDb();
@@ -141,7 +141,7 @@ export const appointmentsRouter = router({
    * Automatically triggers confirmation SMS and email if the lead has
    * phone/email on file and the respective flags are not explicitly disabled.
    */
-  create: protectedProcedure
+  create: paidProcedure
     .input(
       z.object({
         leadId: z.number(),
@@ -164,7 +164,7 @@ export const appointmentsRouter = router({
     }),
 
   /** Update appointment fields */
-  update: protectedProcedure
+  update: paidProcedure
     .input(
       z.object({
         id: z.number(),
@@ -193,7 +193,7 @@ export const appointmentsRouter = router({
     }),
 
   /** Cancel an appointment */
-  cancel: protectedProcedure
+  cancel: paidProcedure
     .input(
       z.object({
         id: z.number(),
@@ -220,7 +220,7 @@ export const appointmentsRouter = router({
    * Get upcoming appointments in the next N days.
    * Used by the Dashboard "Upcoming Jobs" widget.
    */
-  upcoming: protectedProcedure
+  upcoming: paidProcedure
     .input(z.object({ days: z.number().min(1).max(90).default(7) }))
     .query(async ({ input, ctx }) => {
       const db = await getDb();
@@ -271,7 +271,7 @@ export const appointmentsRouter = router({
    * Send a 24-hour appointment reminder SMS to the customer.
    * SMS #2: Appointment Reminder — triggered manually or by a scheduled job.
    */
-  sendReminder: protectedProcedure
+  sendReminder: paidProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       const tenantId = ctx.user.id;

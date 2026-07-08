@@ -24,9 +24,9 @@ import {
 import { useIsMobile } from "@/hooks/useMobile";
 import { useBranding } from "@/contexts/BrandingContext";
 import { useIndustry } from "@/contexts/IndustryContext";
-import { BarChart3, BookOpen, CalendarDays, CreditCard, FileText, HardHat, LayoutDashboard, LayoutTemplate, LogOut, Mail, MessageSquare, PanelLeft, Receipt, Settings, Sparkles, Users } from "lucide-react";
+import { BarChart3, BookOpen, CalendarDays, CreditCard, FileText, HardHat, LayoutDashboard, LayoutTemplate, Loader2, LogOut, Mail, MessageSquare, PanelLeft, Receipt, Settings, Sparkles, Users } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
-import { useLocation } from "wouter";
+import { Redirect, useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 
@@ -80,6 +80,64 @@ const DEFAULT_WIDTH = 280;
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 480;
 
+// The only route reachable without an active subscription (besides the
+// sign-in screen above) — must stay exempt or unpaid users can never
+// escape the redirect this same gate issues.
+const SUBSCRIPTION_EXEMPT_PATH = "/pricing";
+
+// Matches the values server/routes/stripeWebhook.ts writes to
+// users.subscriptionStatus that should grant dashboard access — kept in
+// sync with the identical check in server/_core/trpc.ts (paidProcedure).
+const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active"]);
+
+/**
+ * Shown right after a Stripe redirect (/dashboard?checkout=success) while
+ * the webhook hasn't updated subscriptionStatus yet. Polls auth.me every
+ * 2s; once status flips to active, the parent DashboardLayout re-renders
+ * past this screen automatically. Falls back to a manual retry/pricing
+ * link if the webhook hasn't caught up after 20s.
+ */
+function ActivatingAccount() {
+  const [timedOut, setTimedOut] = useState(false);
+  const { refresh } = useAuth({ pollIntervalMs: 2000 });
+
+  useEffect(() => {
+    const timer = setTimeout(() => setTimedOut(true), 20_000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="flex flex-col items-center gap-6 p-8 max-w-md w-full text-center">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight mb-2">
+            Activating your account…
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            We're confirming your payment with Stripe. This usually takes just a few seconds.
+          </p>
+        </div>
+        {timedOut && (
+          <div className="flex flex-col items-center gap-3 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Still waiting on confirmation — you can try refreshing or head back to plans.
+            </p>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => refresh()}>
+                Check again
+              </Button>
+              <Button variant="ghost" onClick={() => { window.location.href = "/pricing"; }}>
+                Back to plans
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardLayout({
   children,
 }: {
@@ -90,6 +148,7 @@ export default function DashboardLayout({
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
+  const [location] = useLocation();
   const { branding } = useBranding();
   const gaId = (branding as unknown as { googleAnalyticsId?: string | null }).googleAnalyticsId;
 
@@ -143,6 +202,19 @@ export default function DashboardLayout({
     );
   }
 
+  const hasActiveSubscription = ACTIVE_SUBSCRIPTION_STATUSES.has(user.subscriptionStatus ?? "");
+
+  if (!hasActiveSubscription && location !== SUBSCRIPTION_EXEMPT_PATH) {
+    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    const justCheckedOut = params?.get("checkout") === "success";
+
+    if (justCheckedOut) {
+      return <ActivatingAccount />;
+    }
+
+    return <Redirect to="/pricing" />;
+  }
+
   return (
     <SidebarProvider
       style={
@@ -151,7 +223,7 @@ export default function DashboardLayout({
         } as CSSProperties
       }
     >
-      <DashboardLayoutContent setSidebarWidth={setSidebarWidth}>
+      <DashboardLayoutContent setSidebarWidth={setSidebarWidth} hasActiveSubscription={hasActiveSubscription}>
         {children}
       </DashboardLayoutContent>
     </SidebarProvider>
@@ -161,11 +233,13 @@ export default function DashboardLayout({
 type DashboardLayoutContentProps = {
   children: React.ReactNode;
   setSidebarWidth: (width: number) => void;
+  hasActiveSubscription: boolean;
 };
 
 function DashboardLayoutContent({
   children,
   setSidebarWidth,
+  hasActiveSubscription,
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
   const { branding } = useBranding();
@@ -178,11 +252,16 @@ function DashboardLayoutContent({
   const activeMenuItem = menuItems.find(item => item.path === location || (item.path !== '/' && location.startsWith(item.path)));
   const isMobile = useIsMobile();
 
-  // Fetch unread conversation count
-  const { data: unreadCount = 0 } = trpc.sms.getUnreadCount.useQuery();
+  // These back paidProcedure endpoints — only fetch once subscribed, so an
+  // unpaid user viewing the exempted /pricing page doesn't fire requests
+  // that are guaranteed to be rejected server-side.
+  const { data: unreadCount = 0 } = trpc.sms.getUnreadCount.useQuery(undefined, {
+    enabled: hasActiveSubscription,
+  });
   const markAllAsReadMutation = trpc.sms.markAsRead.useMutation();
-  // Fetch overdue invoice count for sidebar badge
-  const { data: overdueCount = 0 } = trpc.invoices.getOverdueCount.useQuery();
+  const { data: overdueCount = 0 } = trpc.invoices.getOverdueCount.useQuery(undefined, {
+    enabled: hasActiveSubscription,
+  });
 
   // Apply primary color as CSS variable on the sidebar element
   const sidebarStyle: CSSProperties = branding.primaryColor

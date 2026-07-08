@@ -78,6 +78,7 @@ function makeAuthCtx(): TrpcContext {
       createdAt: new Date(),
       updatedAt: new Date(),
       lastSignedIn: new Date(),
+      subscriptionStatus: "active",
     },
     req: { protocol: "https", headers: {} } as TrpcContext["req"],
     res: {

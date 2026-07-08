@@ -9,7 +9,7 @@
  */
 
 import { z } from "zod";
-import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
+import { paidProcedure, publicProcedure, router } from "../_core/trpc";
 import { uploadPhoto, listPhotos, deletePhoto, getPhotosByLead } from "../services/photos";
 import { TRPCError } from "@trpc/server";
 
@@ -21,7 +21,7 @@ export const photosRouter = router({
    * The client sends the image as a base64-encoded string with its MIME type.
    * The server decodes it, uploads to S3, and persists the DB record.
    */
-  upload: protectedProcedure
+  upload: paidProcedure
     .input(
       z.object({
         leadId: z.number().int().positive(),
@@ -65,7 +65,7 @@ export const photosRouter = router({
     }),
 
   /** List photos for a lead, optionally filtered by type */
-  list: protectedProcedure
+  list: paidProcedure
     .input(
       z.object({
         leadId: z.number().int().positive(),
@@ -78,7 +78,7 @@ export const photosRouter = router({
     }),
 
   /** Get photos for a lead grouped into { before: [], after: [] } */
-  byLead: protectedProcedure
+  byLead: paidProcedure
     .input(z.object({ leadId: z.number().int().positive() }))
     .query(async ({ input, ctx }) => {
       const tenantId = ctx.user.id;
@@ -103,7 +103,7 @@ export const photosRouter = router({
     }),
 
   /** Delete a photo by ID */
-  delete: protectedProcedure
+  delete: paidProcedure
     .input(z.object({ photoId: z.number().int().positive() }))
     .mutation(async ({ input, ctx }) => {
       const tenantId = ctx.user.id;

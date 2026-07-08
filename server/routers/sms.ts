@@ -10,7 +10,7 @@
  */
 
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { paidProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { conversations } from "../../drizzle/schema";
 import { eq, desc, sql, and } from "drizzle-orm";
@@ -22,7 +22,7 @@ export const smsRouter = router({
    * Returns all SMS messages for a given lead, ordered oldest → newest
    * so the chat thread renders in chronological order.
    */
-  list: protectedProcedure
+  list: paidProcedure
     .input(z.object({ leadId: z.number() }))
     .query(async ({ input, ctx }) => {
       const db = await getDb();
@@ -40,7 +40,7 @@ export const smsRouter = router({
    * Sends an outbound SMS to the given phone number and persists the message.
    * Uses the Twilio credentials from environment variables.
    */
-  send: protectedProcedure
+  send: paidProcedure
     .input(
       z.object({
         leadId: z.number(),
@@ -68,7 +68,7 @@ export const smsRouter = router({
    * Marks all conversations for a given lead as read.
    * Called when the SMS tab is opened for a lead.
    */
-  markAsRead: protectedProcedure
+  markAsRead: paidProcedure
     .input(z.object({ leadId: z.number() }))
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();
@@ -85,7 +85,7 @@ export const smsRouter = router({
    * Returns the count of unread conversations across all leads.
    * Used to display the badge count in the sidebar.
    */
-  getUnreadCount: protectedProcedure.query(async ({ ctx }) => {
+  getUnreadCount: paidProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) return 0;
     const tenantId = ctx.user.id;
@@ -100,7 +100,7 @@ export const smsRouter = router({
    * Marks ALL conversations across all leads as read.
    * Called when the Communications page mounts to clear the sidebar badge.
    */
-  markAllRead: protectedProcedure.mutation(async ({ ctx }) => {
+  markAllRead: paidProcedure.mutation(async ({ ctx }) => {
     const db = await getDb();
     if (!db) return { success: false };
     const tenantId = ctx.user.id;
@@ -115,7 +115,7 @@ export const smsRouter = router({
    * Returns whether Twilio credentials are present in the environment.
    * Used by the frontend to show a configuration warning when not set up.
    */
-  status: protectedProcedure.query(() => {
+  status: paidProcedure.query(() => {
     return {
       configured: !!(
         ENV.twilioAccountSid &&

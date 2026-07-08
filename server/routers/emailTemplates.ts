@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { paidProcedure, router } from "../_core/trpc";
 import {
   createAutomationRule,
   createEmailTemplate,
@@ -31,19 +31,19 @@ const triggerTypeEnum = z.enum([
 ]);
 
 export const emailTemplatesRouter = router({
-  list: protectedProcedure.query(async ({ ctx }) => {
+  list: paidProcedure.query(async ({ ctx }) => {
     const tenantId = ctx.user.id;
     return getEmailTemplates(tenantId);
   }),
 
-  byId: protectedProcedure
+  byId: paidProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
       const tenantId = ctx.user.id;
       return getEmailTemplateById(input.id, tenantId);
     }),
 
-  create: protectedProcedure
+  create: paidProcedure
     .input(
       z.object({
         name: z.string().min(1),
@@ -59,7 +59,7 @@ export const emailTemplatesRouter = router({
       return { success: true };
     }),
 
-  update: protectedProcedure
+  update: paidProcedure
     .input(
       z.object({
         id: z.number(),
@@ -78,7 +78,7 @@ export const emailTemplatesRouter = router({
       return { success: true };
     }),
 
-  delete: protectedProcedure
+  delete: paidProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       const tenantId = ctx.user.id;
@@ -88,7 +88,7 @@ export const emailTemplatesRouter = router({
 });
 
 export const automationRulesRouter = router({
-  list: protectedProcedure.query(async ({ ctx }) => {
+  list: paidProcedure.query(async ({ ctx }) => {
     const tenantId = ctx.user.id;
     const rules = await getAutomationRules(tenantId);
     const templates = await (async () => {
@@ -102,14 +102,14 @@ export const automationRulesRouter = router({
     }));
   }),
 
-  byId: protectedProcedure
+  byId: paidProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
       const tenantId = ctx.user.id;
       return getAutomationRuleById(input.id, tenantId);
     }),
 
-  create: protectedProcedure
+  create: paidProcedure
     .input(
       z.object({
         name: z.string().min(1),
@@ -126,7 +126,7 @@ export const automationRulesRouter = router({
       return { success: true };
     }),
 
-  update: protectedProcedure
+  update: paidProcedure
     .input(
       z.object({
         id: z.number(),
@@ -146,7 +146,7 @@ export const automationRulesRouter = router({
       return { success: true };
     }),
 
-  delete: protectedProcedure
+  delete: paidProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       const tenantId = ctx.user.id;

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { paidProcedure, router } from "../_core/trpc";
 import { getLeadById, updateLead, createCommunicationLogEntry, getDb } from "../db";
 import { ENV } from "../_core/env";
 import { appSettings } from "../../drizzle/schema";
@@ -23,7 +23,7 @@ async function resolveStripeSecretKey(): Promise<string | undefined> {
 }
 
 export const stripeRouter = router({
-  createPaymentLink: protectedProcedure
+  createPaymentLink: paidProcedure
     .input(
       z.object({
         leadId: z.number(),
@@ -89,7 +89,7 @@ export const stripeRouter = router({
       }
     }),
 
-  markPaid: protectedProcedure
+  markPaid: paidProcedure
     .input(z.object({ leadId: z.number() }))
     .mutation(async ({ input, ctx }) => {
       await updateLead(input.leadId, {

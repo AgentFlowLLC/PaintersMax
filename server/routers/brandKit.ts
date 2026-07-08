@@ -1,4 +1,4 @@
-import { protectedProcedure, router } from "../_core/trpc";
+import { paidProcedure, router } from "../_core/trpc";
 import { z } from "zod";
 import { getDb } from "../db";
 import { appSettings } from "../../drizzle/schema";
@@ -6,7 +6,7 @@ import { eq, and } from "drizzle-orm";
 
 export const brandKitRouter = router({
   // ─── Read brand-kit fields for the current tenant ─────────────────────────
-  get: protectedProcedure.query(async ({ ctx }) => {
+  get: paidProcedure.query(async ({ ctx }) => {
     const tenantId = ctx.user.id;
     const db = await getDb();
     const empty = {
@@ -34,7 +34,7 @@ export const brandKitRouter = router({
   }),
 
   // ─── Upsert brand-kit fields for the current tenant ───────────────────────
-  save: protectedProcedure
+  save: paidProcedure
     .input(
       z.object({
         companyName: z.string().max(200).optional(),

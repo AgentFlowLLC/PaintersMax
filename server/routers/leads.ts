@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { paidProcedure, router } from "../_core/trpc";
 import {
   createLead,
   createCommunicationLogEntry,
@@ -61,7 +61,7 @@ function interpolateTemplate(body: string, lead: Record<string, unknown>): strin
 }
 
 export const leadsRouter = router({
-  list: protectedProcedure
+  list: paidProcedure
     .input(
       z.object({
         stage: stageEnum.optional(),
@@ -95,7 +95,7 @@ export const leadsRouter = router({
       return query.orderBy(desc(leads.updatedAt));
     }),
 
-  kanban: protectedProcedure.query(async ({ ctx }) => {
+  kanban: paidProcedure.query(async ({ ctx }) => {
     const stages: Record<string, any[]> = {
       lead: [],
       quoted: [],
@@ -121,7 +121,7 @@ export const leadsRouter = router({
     return stages;
   }),
 
-  byId: protectedProcedure
+  byId: paidProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
       const db = await getDb();
@@ -136,7 +136,7 @@ export const leadsRouter = router({
       return result[0];
     }),
 
-  create: protectedProcedure
+  create: paidProcedure
     .input(leadInput)
     .mutation(async ({ input, ctx }) => {
       const tenantId = ctx.user.id;
@@ -216,7 +216,7 @@ export const leadsRouter = router({
       return result;
     }),
 
-  update: protectedProcedure
+  update: paidProcedure
     .input(z.object({ id: z.number(), data: leadInput.partial() }))
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();
@@ -241,7 +241,7 @@ export const leadsRouter = router({
       return { success: true };
     }),
 
-  updateStage: protectedProcedure
+  updateStage: paidProcedure
     .input(z.object({ id: z.number(), stage: stageEnum }))
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();
@@ -393,7 +393,7 @@ export const leadsRouter = router({
       return { success: true };
     }),
 
-  delete: protectedProcedure
+  delete: paidProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();

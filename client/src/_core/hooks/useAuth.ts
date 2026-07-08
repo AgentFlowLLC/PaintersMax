@@ -6,16 +6,20 @@ import { useCallback, useEffect, useMemo } from "react";
 type UseAuthOptions = {
   redirectOnUnauthenticated?: boolean;
   redirectPath?: string;
+  /** Poll auth.me at this interval (ms) — used while waiting for the Stripe
+   * webhook to flip subscriptionStatus right after checkout. Omit to disable. */
+  pollIntervalMs?: number;
 };
 
 export function useAuth(options?: UseAuthOptions) {
-  const { redirectOnUnauthenticated = false, redirectPath = "/login" } =
+  const { redirectOnUnauthenticated = false, redirectPath = "/login", pollIntervalMs } =
     options ?? {};
   const utils = trpc.useUtils();
 
   const meQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
     refetchOnWindowFocus: false,
+    refetchInterval: pollIntervalMs,
   });
 
   const logoutMutation = trpc.auth.logout.useMutation({

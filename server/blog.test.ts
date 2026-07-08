@@ -27,7 +27,7 @@ function createCaller(user?: { id: number; name: string; openId: string; role: s
 }
 
 describe("blog router", () => {
-  const adminUser = { id: 1, name: "Admin", openId: "admin-1", role: "admin" };
+  const adminUser = { id: 1, name: "Admin", openId: "admin-1", role: "admin", subscriptionStatus: "active" };
 
   describe("listPublished", () => {
     it("returns empty array when db is unavailable", async () => {

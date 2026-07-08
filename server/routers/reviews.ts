@@ -7,7 +7,7 @@
  */
 
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { paidProcedure, router } from "../_core/trpc";
 import { sendReviewRequest } from "../services/reviews";
 import { getDb } from "../db";
 import { appSettings } from "../../drizzle/schema";
@@ -17,7 +17,7 @@ export const reviewsRouter = router({
    * Manually send a Google Review request SMS for a specific lead.
    * Returns success/failure details.
    */
-  send: protectedProcedure
+  send: paidProcedure
     .input(
       z.object({
         leadId: z.number().int().positive(),
@@ -32,7 +32,7 @@ export const reviewsRouter = router({
    * Check whether the Google Review link is configured in app_settings.
    * Used by the frontend to show a warning if the link is missing.
    */
-  status: protectedProcedure.query(async () => {
+  status: paidProcedure.query(async () => {
     const db = await getDb();
     if (!db) return { configured: false, link: null, autoReviewEnabled: false };
 

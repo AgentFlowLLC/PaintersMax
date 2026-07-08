@@ -187,7 +187,7 @@ describe("invoices.getOverdueCount", () => {
   it("returns 0 when db is unavailable", async () => {
     mockGetDb.mockResolvedValue(null as never);
     const caller = appRouter.createCaller({
-      user: { id: 1, name: "Test", email: "test@test.com", role: "admin" },
+      user: { id: 1, name: "Test", email: "test@test.com", role: "admin", subscriptionStatus: "active" },
       req: {} as never,
       res: {} as never,
     });
@@ -205,7 +205,7 @@ describe("invoices.getOverdueCount", () => {
     };
     mockGetDb.mockResolvedValue(db as never);
     const caller = appRouter.createCaller({
-      user: { id: 1, name: "Test", email: "test@test.com", role: "admin" },
+      user: { id: 1, name: "Test", email: "test@test.com", role: "admin", subscriptionStatus: "active" },
       req: {} as never,
       res: {} as never,
     });
@@ -223,7 +223,7 @@ describe("invoices.getOverdueCount", () => {
     };
     mockGetDb.mockResolvedValue(db as never);
     const caller = appRouter.createCaller({
-      user: { id: 1, name: "Test", email: "test@test.com", role: "admin" },
+      user: { id: 1, name: "Test", email: "test@test.com", role: "admin", subscriptionStatus: "active" },
       req: {} as never,
       res: {} as never,
     });

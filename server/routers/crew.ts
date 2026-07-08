@@ -10,7 +10,7 @@
  *   crew.reactivate    — set status to 'active'
  */
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { paidProcedure, router } from "../_core/trpc";
 import {
   listCrewMembers,
   getCrewMember,
@@ -30,7 +30,7 @@ const crewMemberSchema = z.object({
 
 export const crewRouter = router({
   /** List all crew members, optionally filtered by status */
-  list: protectedProcedure
+  list: paidProcedure
     .input(
       z.object({
         status: z.enum(["active", "inactive", "all"]).default("all"),
@@ -42,7 +42,7 @@ export const crewRouter = router({
     }),
 
   /** Get a single crew member by ID */
-  get: protectedProcedure
+  get: paidProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
       const tenantId = ctx.user.id;
@@ -50,7 +50,7 @@ export const crewRouter = router({
     }),
 
   /** Create a new crew member */
-  create: protectedProcedure
+  create: paidProcedure
     .input(crewMemberSchema)
     .mutation(async ({ input, ctx }) => {
       const tenantId = ctx.user.id;
@@ -65,7 +65,7 @@ export const crewRouter = router({
     }),
 
   /** Update an existing crew member */
-  update: protectedProcedure
+  update: paidProcedure
     .input(
       z.object({
         id: z.number(),
@@ -84,7 +84,7 @@ export const crewRouter = router({
     }),
 
   /** Deactivate a crew member */
-  deactivate: protectedProcedure
+  deactivate: paidProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       const tenantId = ctx.user.id;
@@ -92,7 +92,7 @@ export const crewRouter = router({
     }),
 
   /** Reactivate a crew member */
-  reactivate: protectedProcedure
+  reactivate: paidProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       const tenantId = ctx.user.id;

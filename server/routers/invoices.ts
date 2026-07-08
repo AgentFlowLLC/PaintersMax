@@ -13,7 +13,7 @@
  */
 
 import { z } from "zod";
-import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
+import { paidProcedure, publicProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { invoices, leads, appSettings } from "../../drizzle/schema";
 import { eq, desc, and, lt, count } from "drizzle-orm";
@@ -102,7 +102,7 @@ const invoiceStatusEnum = z.enum(["draft", "sent", "paid", "overdue"]);
 
 export const invoicesRouter = router({
   /** List all invoices, optionally filtered by leadId or status */
-  list: protectedProcedure
+  list: paidProcedure
     .input(
       z
         .object({
@@ -178,7 +178,7 @@ export const invoicesRouter = router({
     }),
 
   /** Get all invoices for a specific lead */
-  byLead: protectedProcedure
+  byLead: paidProcedure
     .input(z.object({ leadId: z.number() }))
     .query(async ({ input, ctx }) => {
       const db = await getDb();
@@ -192,7 +192,7 @@ export const invoicesRouter = router({
     }),
 
   /** Get a single invoice by ID */
-  byId: protectedProcedure
+  byId: paidProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input, ctx }) => {
       const db = await getDb();
@@ -210,7 +210,7 @@ export const invoicesRouter = router({
    * Generate a draft invoice with line items.
    * Calculates subtotal, tax, and total automatically.
    */
-  generate: protectedProcedure
+  generate: paidProcedure
     .input(
       z.object({
         leadId: z.number(),
@@ -235,7 +235,7 @@ export const invoicesRouter = router({
    * - Sends it via SMS
    * - Updates status to "sent"
    */
-  send: protectedProcedure
+  send: paidProcedure
     .input(
       z.object({
         invoiceId: z.number(),
@@ -263,7 +263,7 @@ export const invoicesRouter = router({
     }),
 
   /** Manually mark an invoice as paid */
-  markPaid: protectedProcedure
+  markPaid: paidProcedure
     .input(
       z.object({
         invoiceId: z.number(),
@@ -291,7 +291,7 @@ export const invoicesRouter = router({
     }),
 
   /** Update invoice fields (notes, dueDate, lineItems — only on draft invoices) */
-  update: protectedProcedure
+  update: paidProcedure
     .input(
       z.object({
         id: z.number(),
@@ -353,7 +353,7 @@ export const invoicesRouter = router({
     }),
 
   /** Get count of overdue invoices for the sidebar badge */
-  getOverdueCount: protectedProcedure
+  getOverdueCount: paidProcedure
     .query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) return 0;
@@ -366,7 +366,7 @@ export const invoicesRouter = router({
     }),
 
   /** Delete a draft invoice */
-  delete: protectedProcedure
+  delete: paidProcedure
     .input(z.object({ id: z.number() }))
     .mutation(async ({ input, ctx }) => {
       const db = await getDb();

@@ -13,7 +13,7 @@
  *   4. upcomingJobsCount  — COUNT(*) from appointments in the next 7 days (always live, no range)
  *   5. conversionRate     — paidLeads / totalLeads * 100 (within range)
  */
-import { protectedProcedure, router } from "../_core/trpc";
+import { paidProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import {
   leads,
@@ -31,7 +31,7 @@ export const dashboardRouter = router({
    * Returns an array of { weekLabel: 'Apr 7', revenue: 1234.56 } objects,
    * oldest week first, always 12 entries (0 for weeks with no revenue).
    */
-  revenueTrend: protectedProcedure.query(async () => {
+  revenueTrend: paidProcedure.query(async () => {
     const db = await getDb();
     if (!db) return [];
 
@@ -98,7 +98,7 @@ export const dashboardRouter = router({
    * Returns competitive intel for the current painter's service area.
    * Queries painter_profiles to count other painters with overlapping service cities.
    */
-  marketPosition: protectedProcedure.query(async ({ ctx }) => {
+  marketPosition: paidProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) return null;
 
@@ -143,7 +143,7 @@ export const dashboardRouter = router({
    * Returns all dashboard data in a single query batch.
    * Accepts optional dateRange to filter KPI metrics.
    */
-  stats: protectedProcedure
+  stats: paidProcedure
     .input(
       z.object({
         dateRange: z.enum(["this_month", "last_30", "all_time"]).optional().default("all_time"),
