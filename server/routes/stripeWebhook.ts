@@ -562,14 +562,16 @@ export function registerStripeWebhook(app: Express): void {
       });
     },
     async (req: Request, res: Response) => {
-      // ── Respond 200 immediately so Stripe does not time out ─────────────────
-      res.status(200).json({ received: true });
-
-      // ── All processing is async and fully wrapped — never crashes ────────────
+      // ── All processing must complete BEFORE responding. On Vercel this runs
+      // as a serverless function invocation — once the HTTP response is sent,
+      // the execution context can be frozen/torn down and any async work still
+      // in flight (DB writes, further logging) may never finish. Sending the
+      // ack early was silently dropping the database update every time.
       try {
         const rawBody = (req as Request & { rawBody?: Buffer }).rawBody;
         if (!rawBody) {
           console.error("[Stripe Webhook] No raw body captured");
+          res.status(400).json({ error: "No raw body captured" });
           return;
         }
 
@@ -590,6 +592,7 @@ export function registerStripeWebhook(app: Express): void {
             console.error(
               `[Stripe Webhook] stripe.webhooks.constructEvent failed: ${(sigErr as Error).message}`
             );
+            res.status(400).json({ error: `Signature verification failed: ${(sigErr as Error).message}` });
             return;
           }
         } else {
@@ -603,6 +606,7 @@ export function registerStripeWebhook(app: Express): void {
             event = JSON.parse(rawBody.toString("utf8")) as Stripe.Event;
           } catch (parseErr) {
             console.error("[Stripe Webhook] Failed to parse JSON body:", (parseErr as Error).message);
+            res.status(400).json({ error: `Failed to parse JSON body: ${(parseErr as Error).message}` });
             return;
           }
         }
@@ -610,10 +614,14 @@ export function registerStripeWebhook(app: Express): void {
         console.log(`[Stripe Webhook] Received event: ${event.type} (id=${event.id})`);
 
         // ── Route by event type ──────────────────────────────────────────────
+        let processed = true;
+        let reason: string | undefined;
         if (event.type === "checkout.session.completed") {
           const result = await handleCheckoutSessionCompleted(
             event.data.object as Stripe.Checkout.Session
           );
+          processed = result.processed;
+          reason = result.reason;
           if (!result.processed) {
             console.log(`[Stripe Webhook] checkout.session.completed not processed: ${result.reason}`);
           }
@@ -621,6 +629,8 @@ export function registerStripeWebhook(app: Express): void {
           const result = await handlePaymentIntentSucceeded(
             event.data.object as Stripe.PaymentIntent
           );
+          processed = result.processed;
+          reason = result.reason;
           if (!result.processed) {
             console.log(`[Stripe Webhook] payment_intent.succeeded not processed: ${result.reason}`);
           }
@@ -628,6 +638,8 @@ export function registerStripeWebhook(app: Express): void {
           const result = await handlePaymentIntentPaymentFailed(
             event.data.object as Stripe.PaymentIntent
           );
+          processed = result.processed;
+          reason = result.reason;
           if (!result.processed) {
             console.log(`[Stripe Webhook] payment_intent.payment_failed not processed: ${result.reason}`);
           }
@@ -639,11 +651,17 @@ export function registerStripeWebhook(app: Express): void {
           // Handle subscription invoice payment failures
           await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
         } else {
+          processed = false;
+          reason = `unhandled event type: ${event.type}`;
           console.log(`[Stripe Webhook] Ignoring unhandled event type: ${event.type}`);
         }
+
+        res.status(200).json({ received: true, processed, ...(reason ? { reason } : {}) });
       } catch (err) {
-        // Never crash — log and swallow all errors
-        console.error("[Stripe Webhook] Unhandled error in async processing:", (err as Error).message);
+        // Log the failure, but still ack so Stripe doesn't hammer retries for a
+        // bug that will just recur; the error is visible in server logs instead.
+        console.error("[Stripe Webhook] Unhandled error in processing:", (err as Error).message);
+        res.status(200).json({ received: true, processed: false, reason: "internal error" });
       }
     }
   );
