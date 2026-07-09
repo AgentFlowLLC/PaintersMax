@@ -20,6 +20,7 @@ import {
   invoices,
   appointments,
   communicationLog,
+  painterProfiles,
 } from "../../drizzle/schema";
 import { and, eq, gte, lt, lte, ne, sql, desc } from "drizzle-orm";
 import { z } from "zod";
@@ -104,30 +105,36 @@ export const dashboardRouter = router({
 
     const userId = ctx.user.id;
 
-    const profileRows = await db.execute(
-      sql`SELECT service_cities FROM painter_profiles WHERE user_id = ${userId} LIMIT 1`
-    );
-    const profile = (profileRows as unknown as { rows: Record<string, unknown>[] }).rows?.[0];
+    const profileRows = await db
+      .select({ serviceCities: painterProfiles.serviceCities })
+      .from(painterProfiles)
+      .where(eq(painterProfiles.userId, userId))
+      .limit(1);
+    const profile = profileRows[0];
     if (!profile) return null;
 
-    const serviceCities = (profile.service_cities as Array<{ city: string }> | null) ?? [];
+    const serviceCities = (profile.serviceCities as Array<{ city: string }> | null) ?? [];
     const primaryCity = serviceCities?.[0]?.city?.trim() || null;
     if (!primaryCity) return null;
 
+    // jsonb_array_elements() over a correlated subquery has no first-class
+    // Drizzle query-builder equivalent, so this stays a raw sql`` fragment —
+    // but every column/table reference below is a real painterProfiles
+    // binding rather than a bare string, so a future rename is caught by TS.
     const competitorRows = await db.execute(sql`
       WITH my_cities AS (
-        SELECT jsonb_array_elements(service_cities)->>'city' AS city
-        FROM painter_profiles
-        WHERE user_id = ${userId}
+        SELECT jsonb_array_elements(${painterProfiles.serviceCities})->>'city' AS city
+        FROM ${painterProfiles}
+        WHERE ${painterProfiles.userId} = ${userId}
       )
-      SELECT COUNT(DISTINCT p.user_id)::integer AS competitor_count
-      FROM painter_profiles p
-      WHERE p.user_id != ${userId}
-        AND p.service_cities IS NOT NULL
-        AND jsonb_array_length(p.service_cities) > 0
+      SELECT COUNT(DISTINCT ${painterProfiles.userId})::integer AS competitor_count
+      FROM ${painterProfiles}
+      WHERE ${painterProfiles.userId} != ${userId}
+        AND ${painterProfiles.serviceCities} IS NOT NULL
+        AND jsonb_array_length(${painterProfiles.serviceCities}) > 0
         AND EXISTS (
           SELECT 1
-          FROM jsonb_array_elements(p.service_cities) c
+          FROM jsonb_array_elements(${painterProfiles.serviceCities}) c
           WHERE c->>'city' IN (SELECT city FROM my_cities)
         )
     `);

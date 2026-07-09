@@ -13,8 +13,8 @@ import type { Express, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { getDb } from "../db";
-import { users, appSettings } from "../../drizzle/schema";
-import { eq, sql } from "drizzle-orm";
+import { users, appSettings, painterProfiles } from "../../drizzle/schema";
+import { eq } from "drizzle-orm";
 import { ENV } from "../_core/env";
 import { sendEmail } from "../lib/email";
 
@@ -204,17 +204,17 @@ export function registerEmailPasswordAuthRoutes(app: Express): void {
 
       // ── Create painter_profiles stub so signup_step tracking starts at 1 ─────
       try {
-        await db.execute(sql`
-          INSERT INTO painter_profiles (
-            user_id, company_name, phone, business_email, address,
-            signup_step, signup_updated_at,
-            onboarding_completed, service_cities, created_at, updated_at
-          ) VALUES (
-            ${newUser.id}, '', '', '', '',
-            1, now(),
-            false, '[]'::jsonb, now(), now()
-          )
-        `);
+        await db.insert(painterProfiles).values({
+          userId: newUser.id,
+          companyName: "",
+          phone: "",
+          businessEmail: "",
+          address: "",
+          signupStep: 1,
+          signupUpdatedAt: new Date(),
+          onboardingCompleted: false,
+          serviceCities: [],
+        });
       } catch (profileErr) {
         console.warn("[Register] Failed to create painter_profiles stub:", (profileErr as Error).message);
       }

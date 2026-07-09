@@ -12,10 +12,47 @@
  */
 import type { Express, Request, Response } from "express";
 import { getDb } from "../db";
-import { sql } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
+import { painterProfiles, type PainterProfile } from "../../drizzle/schema";
 import { verifyEmailJwt } from "./emailPasswordAuth";
 import { getUserById } from "../db";
 import { sendEmail } from "../lib/email";
+
+/**
+ * Translates a Drizzle painterProfiles row (camelCase) back into the
+ * snake_case shape the frontend has always sent/received over
+ * /api/onboarding/*. Keeping the wire format frozen avoids touching
+ * Signup.tsx / ProfileCompletion.tsx when the DB columns are renamed.
+ */
+function serializeProfile(profile: PainterProfile | null | undefined) {
+  if (!profile) return null;
+  return {
+    id: profile.id,
+    user_id: profile.userId,
+    company_name: profile.companyName,
+    phone: profile.phone,
+    business_email: profile.businessEmail,
+    website: profile.website,
+    address: profile.address,
+    years_in_business: profile.yearsInBusiness,
+    license_number: profile.licenseNumber,
+    insurance_carrier: profile.insuranceCarrier,
+    service_cities: profile.serviceCities,
+    service_radius: profile.serviceRadius,
+    logo_url: profile.logoUrl,
+    tagline: profile.tagline,
+    onboarding_completed: profile.onboardingCompleted,
+    chatbot_name: profile.chatbotName,
+    chatbot_avatar: profile.chatbotAvatar,
+    has_website: profile.hasWebsite,
+    template_style: profile.templateStyle,
+    template_tier: profile.templateTier,
+    signup_step: profile.signupStep,
+    signup_updated_at: profile.signupUpdatedAt,
+    created_at: profile.createdAt,
+    updated_at: profile.updatedAt,
+  };
+}
 
 // ─── Auth helper ──────────────────────────────────────────────────────────────
 async function getAuthenticatedUser(req: Request) {
@@ -60,79 +97,79 @@ async function uploadToSupabaseStorage(
   return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
 }
 
-// ─── Raw SQL helpers (avoids schema import issues for new table) ──────────────
-async function getPainterProfile(userId: number) {
+// ─── Drizzle helpers ────────────────────────────────────────────────────────
+async function getPainterProfile(userId: number): Promise<PainterProfile | null> {
   const db = await getDb();
   if (!db) return null;
-  const rows = await db.execute(
-    sql`SELECT * FROM painter_profiles WHERE user_id = ${userId} ORDER BY signup_step DESC, id DESC LIMIT 1`
-  );
-  return (rows as unknown as unknown[])[0] as Record<string, unknown> ?? null;
+  const rows = await db
+    .select()
+    .from(painterProfiles)
+    .where(eq(painterProfiles.userId, userId))
+    .orderBy(desc(painterProfiles.signupStep), desc(painterProfiles.id))
+    .limit(1);
+  return rows[0] ?? null;
 }
 
-async function upsertPainterProfile(userId: number, data: Record<string, unknown>) {
+async function upsertPainterProfile(
+  userId: number,
+  data: Record<string, unknown>
+): Promise<PainterProfile | null> {
   console.log("[Upsert] Called with userId:", userId, "type:", typeof userId);
   const db = await getDb();
   if (!db) return null;
   const uid = Number(userId);
-  const signupStep = (data.signup_step as number) ?? null;
+  const signupStep = (data.signup_step as number) ?? 1;
 
-  await db.execute(sql`
-    INSERT INTO painter_profiles (
-      user_id, company_name, phone, business_email, website, address,
-      years_in_business, license_number, insurance_carrier,
-      service_cities, service_radius, logo_url,
-      tagline, chatbot_name, chatbot_avatar,
-      has_website, template_style, template_tier,
-      signup_step, signup_updated_at,
-      onboarding_completed, created_at, updated_at
-    ) VALUES (
-      ${uid},
-      ${(data.company_name as string) ?? ''},
-      ${(data.phone as string) ?? ''},
-      ${(data.business_email as string) ?? ''},
-      ${(data.website as string) ?? null},
-      ${(data.address as string) ?? ''},
-      ${(data.years_in_business as number) ?? null},
-      ${(data.license_number as string) ?? null},
-      ${(data.insurance_carrier as string) ?? null},
-      ${JSON.stringify(data.service_cities ?? [])}::jsonb,
-      ${(data.service_radius as number) ?? null},
-      ${(data.logo_url as string) ?? null},
-      ${(data.tagline as string) ?? null},
-      ${(data.chatbot_name as string) ?? 'Iris'},
-      ${(data.chatbot_avatar as string) ?? null},
-      ${(data.has_website as boolean) ?? null},
-      ${(data.template_style as string) ?? null},
-      ${(data.template_tier as string) ?? null},
-      ${signupStep ?? 1},
-      now(),
-      false,
-      now(),
-      now()
-    )
-    ON CONFLICT (user_id) DO UPDATE SET
-      company_name      = COALESCE(NULLIF(EXCLUDED.company_name, ''), painter_profiles.company_name),
-      phone             = COALESCE(NULLIF(EXCLUDED.phone, ''), painter_profiles.phone),
-      business_email    = COALESCE(NULLIF(EXCLUDED.business_email, ''), painter_profiles.business_email),
-      website           = EXCLUDED.website,
-      address           = COALESCE(NULLIF(EXCLUDED.address, ''), painter_profiles.address),
-      years_in_business = EXCLUDED.years_in_business,
-      license_number    = EXCLUDED.license_number,
-      insurance_carrier = EXCLUDED.insurance_carrier,
-      service_cities    = EXCLUDED.service_cities,
-      service_radius    = EXCLUDED.service_radius,
-      logo_url          = EXCLUDED.logo_url,
-      tagline           = EXCLUDED.tagline,
-      chatbot_name      = EXCLUDED.chatbot_name,
-      chatbot_avatar    = EXCLUDED.chatbot_avatar,
-      has_website       = EXCLUDED.has_website,
-      template_style    = EXCLUDED.template_style,
-      template_tier     = EXCLUDED.template_tier,
-      signup_step       = GREATEST(painter_profiles.signup_step, EXCLUDED.signup_step),
-      signup_updated_at = CASE WHEN EXCLUDED.signup_step IS NOT NULL THEN now() ELSE painter_profiles.signup_updated_at END,
-      updated_at        = now()
-  `);
+  await db
+    .insert(painterProfiles)
+    .values({
+      userId: uid,
+      companyName: (data.company_name as string) ?? "",
+      phone: (data.phone as string) ?? "",
+      businessEmail: (data.business_email as string) ?? "",
+      website: (data.website as string) ?? null,
+      address: (data.address as string) ?? "",
+      yearsInBusiness: (data.years_in_business as number) ?? null,
+      licenseNumber: (data.license_number as string) ?? null,
+      insuranceCarrier: (data.insurance_carrier as string) ?? null,
+      serviceCities: (data.service_cities as { city: string; state: string }[]) ?? [],
+      serviceRadius: (data.service_radius as number) ?? null,
+      logoUrl: (data.logo_url as string) ?? null,
+      tagline: (data.tagline as string) ?? null,
+      chatbotName: (data.chatbot_name as string) ?? "Iris",
+      chatbotAvatar: (data.chatbot_avatar as string) ?? null,
+      hasWebsite: (data.has_website as boolean) ?? null,
+      templateStyle: (data.template_style as string) ?? null,
+      templateTier: (data.template_tier as string) ?? null,
+      signupStep,
+      signupUpdatedAt: new Date(),
+      onboardingCompleted: false,
+    })
+    .onConflictDoUpdate({
+      target: painterProfiles.userId,
+      set: {
+        companyName: sql`COALESCE(NULLIF(excluded."companyName", ''), ${painterProfiles.companyName})`,
+        phone: sql`COALESCE(NULLIF(excluded."phone", ''), ${painterProfiles.phone})`,
+        businessEmail: sql`COALESCE(NULLIF(excluded."businessEmail", ''), ${painterProfiles.businessEmail})`,
+        website: sql`excluded."website"`,
+        address: sql`COALESCE(NULLIF(excluded."address", ''), ${painterProfiles.address})`,
+        yearsInBusiness: sql`excluded."yearsInBusiness"`,
+        licenseNumber: sql`excluded."licenseNumber"`,
+        insuranceCarrier: sql`excluded."insuranceCarrier"`,
+        serviceCities: sql`excluded."serviceCities"`,
+        serviceRadius: sql`excluded."serviceRadius"`,
+        logoUrl: sql`excluded."logoUrl"`,
+        tagline: sql`excluded."tagline"`,
+        chatbotName: sql`excluded."chatbotName"`,
+        chatbotAvatar: sql`excluded."chatbotAvatar"`,
+        hasWebsite: sql`excluded."hasWebsite"`,
+        templateStyle: sql`excluded."templateStyle"`,
+        templateTier: sql`excluded."templateTier"`,
+        signupStep: sql`GREATEST(${painterProfiles.signupStep}, excluded."signupStep")`,
+        signupUpdatedAt: sql`CASE WHEN excluded."signupStep" IS NOT NULL THEN now() ELSE ${painterProfiles.signupUpdatedAt} END`,
+        updatedAt: new Date(),
+      },
+    });
 
   return getPainterProfile(uid);
 }
@@ -140,11 +177,10 @@ async function upsertPainterProfile(userId: number, data: Record<string, unknown
 async function markOnboardingComplete(userId: number) {
   const db = await getDb();
   if (!db) return;
-  await db.execute(sql`
-    UPDATE painter_profiles
-    SET onboarding_completed = true, updated_at = now()
-    WHERE user_id = ${userId}
-  `);
+  await db
+    .update(painterProfiles)
+    .set({ onboardingCompleted: true, updatedAt: new Date() })
+    .where(eq(painterProfiles.userId, userId));
 }
 
 // ─── Save-Later reminder email ──────────────────────────────────────────────────
@@ -333,13 +369,16 @@ async function generateDemoData(userId: number, tenantId: number) {
   if (!db) return;
 
   // Fetch the most complete profile row for this user
-  const fetchProfile = async () => {
+  const fetchProfile = async (): Promise<PainterProfile | null> => {
     try {
       console.log("[Demo] Attempting DB fetch for userId:", Number(userId), "type:", typeof userId);
-      const rows = await db!.execute(
-        sql`SELECT * FROM painter_profiles WHERE user_id = ${Number(userId)} ORDER BY signup_step DESC, id DESC LIMIT 1`
-      );
-      const result = (rows as unknown as unknown[])[0] as Record<string, unknown> ?? null;
+      const rows = await db!
+        .select()
+        .from(painterProfiles)
+        .where(eq(painterProfiles.userId, Number(userId)))
+        .orderBy(desc(painterProfiles.signupStep), desc(painterProfiles.id))
+        .limit(1);
+      const result = rows[0] ?? null;
       console.log("[Demo] fetchProfile result:", result ? "FOUND id=" + result.id : "NULL - zero rows returned");
       return result;
     } catch (error) {
@@ -351,8 +390,8 @@ async function generateDemoData(userId: number, tenantId: number) {
   let profile = await fetchProfile();
   console.log("[Demo] Profile found:", JSON.stringify({
     id: profile?.id,
-    signup_step: profile?.signup_step,
-    user_id: profile?.user_id,
+    signup_step: profile?.signupStep,
+    user_id: profile?.userId,
   }));
 
   if (!profile) {
@@ -360,8 +399,8 @@ async function generateDemoData(userId: number, tenantId: number) {
     profile = await fetchProfile();
     console.log("[Demo] Profile after retry:", JSON.stringify({
       id: profile?.id,
-      signup_step: profile?.signup_step,
-      user_id: profile?.user_id,
+      signup_step: profile?.signupStep,
+      user_id: profile?.userId,
     }));
   }
   if (!profile) {
@@ -372,12 +411,12 @@ async function generateDemoData(userId: number, tenantId: number) {
   console.log("[Demo] Using tenantId:", tenantId);
 
   const user = await getUserById(userId);
-  const companyName = (profile.company_name as string) || "Your Company";
-  const logoUrl = (profile.logo_url as string) || null;
+  const companyName = profile.companyName || "Your Company";
+  const logoUrl = profile.logoUrl || null;
 
   // City fallback chain: serviceCities → address city segment → "Your Area"
-  const serviceCities = profile.service_cities as Array<{ city: string; state: string }> | null;
-  const addressCity = (profile.address as string | null)?.split(",")?.[0]?.trim() || null;
+  const serviceCities = profile.serviceCities as Array<{ city: string; state: string }> | null;
+  const addressCity = profile.address?.split(",")?.[0]?.trim() || null;
   const city = serviceCities?.[0]?.city?.trim() || addressCity || "Your Area";
   const state = serviceCities?.[0]?.state?.trim() || "";
   const cityLine = state ? `${city}, ${state}` : city;
@@ -479,7 +518,7 @@ async function generateDemoData(userId: number, tenantId: number) {
   }
 
   // ── Send sample quote email ───────────────────────────────────────────────────
-  const emailTo = user?.email ?? (profile.business_email as string);
+  const emailTo = user?.email ?? profile.businessEmail;
   if (emailTo) {
     try {
       await sendSampleQuoteEmail(emailTo, companyName, logoUrl);
@@ -500,8 +539,8 @@ export function registerOnboardingRoutes(app: Express): void {
       const user = await getAuthenticatedUser(req);
       if (!user) return res.status(401).json({ error: "Unauthorized" });
       const profile = await getPainterProfile(user.id);
-      const completed = !!(profile && (profile as Record<string, unknown>).onboarding_completed);
-      return res.json({ completed, profile: profile ?? null });
+      const completed = !!profile?.onboardingCompleted;
+      return res.json({ completed, profile: serializeProfile(profile) });
     } catch (err) {
       console.error("[Onboarding] status error:", err);
       return res.status(500).json({ error: "Internal server error" });
@@ -559,7 +598,7 @@ export function registerOnboardingRoutes(app: Express): void {
         signup_step,
       });
 
-      return res.json({ success: true, profile });
+      return res.json({ success: true, profile: serializeProfile(profile) });
     } catch (err) {
       console.error("[Onboarding] save error:", err);
       return res.status(500).json({ error: "Internal server error" });

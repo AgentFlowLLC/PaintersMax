@@ -144,6 +144,37 @@ export const users = pgTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
+// ─── Painter Profiles ────────────────────────────────────────────────────────
+export const painterProfiles = pgTable("painter_profiles", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().unique(),
+  companyName: text("companyName").notNull(),
+  phone: text("phone").notNull(),
+  businessEmail: text("businessEmail").notNull(),
+  website: text("website"),
+  address: text("address").notNull(),
+  yearsInBusiness: integer("yearsInBusiness"),
+  licenseNumber: text("licenseNumber"),
+  insuranceCarrier: text("insuranceCarrier"),
+  serviceCities: jsonb("serviceCities").$type<{ city: string; state: string }[]>().default([]).notNull(),
+  serviceRadius: integer("serviceRadius"),
+  logoUrl: text("logoUrl"),
+  tagline: text("tagline"),
+  onboardingCompleted: boolean("onboardingCompleted").default(false).notNull(),
+  chatbotName: text("chatbotName").default("Iris"),
+  chatbotAvatar: text("chatbotAvatar"),
+  templateStyle: text("templateStyle").default("dark-gold"),
+  templateTier: text("templateTier").default("starter"),
+  signupStep: integer("signupStep").default(1),
+  signupUpdatedAt: timestamp("signupUpdatedAt").defaultNow(),
+  hasWebsite: boolean("hasWebsite"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export type PainterProfile = typeof painterProfiles.$inferSelect;
+export type InsertPainterProfile = typeof painterProfiles.$inferInsert;
+
 // ─── Leads ───────────────────────────────────────────────────────────────────
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
