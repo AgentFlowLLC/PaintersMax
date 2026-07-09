@@ -446,3 +446,12 @@
       - [ ] Settings.tsx:457 — API key password input isn't wrapped in a <form> 
       tag, triggering a Chrome DOM warning (no functional impact, just 
       missing autofill/password-manager support). Low priority cosmetic fix.
+
+      ## 🔴 URGENT — Fix before any real customer signs up
+
+- [ ] server/routers/stripe.ts — createPaymentLink and markPaid have ZERO 
+      ownership check on client-supplied leadId. Any authenticated paying 
+      user can read another tenant's lead data, attach a payment link to 
+      it, or mark ANY tenant's lead as "paid" with no verification. 
+      Live, write-path cross-tenant vulnerability — fix FIRST in next 
+      session, before anything else.
