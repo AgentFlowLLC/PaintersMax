@@ -5,9 +5,36 @@
  * and creates Stripe Checkout sessions for the self-serve tiers (Starter, Pro).
  */
 import { z } from "zod";
+import type { Request } from "express";
 import { protectedProcedure, router } from "../_core/trpc";
 import { ENV } from "../_core/env";
 import { PLACEHOLDER_MONTHLY_PRICE_CENTS, getAnnualPriceCents } from "@shared/pricing";
+
+/**
+ * Determines the app's own base URL for the current request so Stripe
+ * Checkout can redirect back to wherever this request actually came from —
+ * local dev, this preview branch, or production — without per-branch config.
+ * Falls back to ENV.appUrl / VERCEL_URL / localhost when headers are absent
+ * (e.g. server-to-server calls).
+ */
+function getAppOrigin(req: Request): string {
+  const originHeader = req.headers.origin;
+  if (originHeader) return originHeader;
+
+  const forwardedHost = req.headers["x-forwarded-host"];
+  const host = (Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost) || req.get("host");
+  if (host) {
+    const forwardedProto = req.headers["x-forwarded-proto"];
+    const protoList = Array.isArray(forwardedProto) ? forwardedProto : forwardedProto?.split(",");
+    const protocol = protoList?.[0]?.trim() || req.protocol;
+    return `${protocol}://${host}`;
+  }
+
+  if (ENV.appUrl) return ENV.appUrl;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+
+  return "http://localhost:5173";
+}
 
 export const subscriptionRouter = router({
   /**
@@ -53,7 +80,7 @@ export const subscriptionRouter = router({
       const tierLabel = tier === "starter" ? "Starter" : "Pro";
 
       const painterId = String(ctx.user.id);
-      const appUrl = ENV.appUrl || "http://localhost:5173";
+      const appUrl = getAppOrigin(ctx.req);
 
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
