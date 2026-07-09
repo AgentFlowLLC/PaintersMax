@@ -328,11 +328,11 @@ export async function deleteAttachment(id: number, tenantId: number) {
 
 // ─── Dashboard Stats ──────────────────────────────────────────────────────────
 
-export async function getDashboardStats() {
+export async function getDashboardStats(tenantId: number) {
   const db = await getDb();
   if (!db) return null;
 
-  const allLeads = await db.select().from(leads);
+  const allLeads = await db.select().from(leads).where(eq(leads.tenantId, tenantId));
 
   const stageCounts: Record<string, number> = {
     lead: 0,
@@ -367,6 +367,7 @@ export async function getDashboardStats() {
   const recentActivity = await db
     .select()
     .from(communicationLog)
+    .where(eq(communicationLog.tenantId, tenantId))
     .orderBy(desc(communicationLog.sentAt))
     .limit(10);
 

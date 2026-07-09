@@ -32,9 +32,11 @@ export const dashboardRouter = router({
    * Returns an array of { weekLabel: 'Apr 7', revenue: 1234.56 } objects,
    * oldest week first, always 12 entries (0 for weeks with no revenue).
    */
-  revenueTrend: paidProcedure.query(async () => {
+  revenueTrend: paidProcedure.query(async ({ ctx }) => {
     const db = await getDb();
     if (!db) return [];
+
+    const tenantId = ctx.user.id;
 
     // Build the 12-week window: from start of week 11 weeks ago to now
     const now = new Date();
@@ -56,6 +58,7 @@ export const dashboardRouter = router({
       .from(invoices)
       .where(
         and(
+          eq(invoices.tenantId, tenantId),
           eq(invoices.status, "paid"),
           gte(invoices.paidAt, windowStart)
         )
@@ -156,10 +159,11 @@ export const dashboardRouter = router({
         dateRange: z.enum(["this_month", "last_30", "all_time"]).optional().default("all_time"),
       }).optional()
     )
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
       const db = await getDb();
       if (!db) return null;
 
+      const tenantId = ctx.user.id;
       const dateRange = input?.dateRange ?? "all_time";
       const now = new Date();
       const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -174,8 +178,8 @@ export const dashboardRouter = router({
 
       // ── 1. Total leads count (with optional date filter on createdAt) ───────
       const leadsFilter = rangeStart
-        ? gte(leads.createdAt, rangeStart)
-        : undefined;
+        ? and(eq(leads.tenantId, tenantId), gte(leads.createdAt, rangeStart))
+        : eq(leads.tenantId, tenantId);
 
       const [totalLeadsRow] = await db
         .select({ count: sql<number>`COUNT(*)` })
@@ -192,8 +196,8 @@ export const dashboardRouter = router({
 
       // ── 3. Revenue collected ─────────────────────────────────────────────────
       const invoicesFilter = rangeStart
-        ? and(eq(invoices.status, "paid"), gte(invoices.paidAt, rangeStart))
-        : eq(invoices.status, "paid");
+        ? and(eq(invoices.tenantId, tenantId), eq(invoices.status, "paid"), gte(invoices.paidAt, rangeStart))
+        : and(eq(invoices.tenantId, tenantId), eq(invoices.status, "paid"));
 
       const [revenueRow] = await db
         .select({ total: sql<string>`COALESCE(SUM(total), 0)` })
@@ -207,6 +211,7 @@ export const dashboardRouter = router({
         .from(appointments)
         .where(
           and(
+            eq(appointments.tenantId, tenantId),
             gte(appointments.scheduledDate, now),
             lt(appointments.scheduledDate, nextWeek),
             ne(appointments.status, "cancelled")
@@ -218,11 +223,7 @@ export const dashboardRouter = router({
       const [paidLeadsRow] = await db
         .select({ count: sql<number>`COUNT(*)` })
         .from(leads)
-        .where(
-          leadsFilter
-            ? and(eq(leads.stage, "paid"), leadsFilter)
-            : eq(leads.stage, "paid")
-        );
+        .where(and(eq(leads.stage, "paid"), leadsFilter));
       const paidLeads = Number(paidLeadsRow?.count ?? 0);
       const conversionRate = totalLeads > 0
         ? Math.round((paidLeads / totalLeads) * 100 * 10) / 10
@@ -235,6 +236,7 @@ export const dashboardRouter = router({
           count: sql<number>`COUNT(*)`,
         })
         .from(leads)
+        .where(eq(leads.tenantId, tenantId))
         .groupBy(leads.stage);
 
       const stageCounts: Record<string, number> = {
@@ -263,6 +265,7 @@ export const dashboardRouter = router({
         .from(appointments)
         .where(
           and(
+            eq(appointments.tenantId, tenantId),
             gte(appointments.scheduledDate, now),
             lt(appointments.scheduledDate, nextWeek),
             ne(appointments.status, "cancelled")
@@ -283,7 +286,12 @@ export const dashboardRouter = router({
             projectType: leads.projectType,
           })
           .from(leads)
-          .where(sql`${leads.id} IN (${sql.join(leadIds.map((id) => sql`${id}`), sql`, `)})`);
+          .where(
+            and(
+              eq(leads.tenantId, tenantId),
+              sql`${leads.id} IN (${sql.join(leadIds.map((id) => sql`${id}`), sql`, `)})`
+            )
+          );
         for (const row of leadRows) {
           leadNameMap[row.id] = {
             firstName: row.firstName,
@@ -310,6 +318,7 @@ export const dashboardRouter = router({
       const recentActivity = await db
         .select()
         .from(communicationLog)
+        .where(eq(communicationLog.tenantId, tenantId))
         .orderBy(desc(communicationLog.sentAt))
         .limit(10);
 
@@ -317,7 +326,7 @@ export const dashboardRouter = router({
       const [demoRow] = await db
         .select({ count: sql<number>`COUNT(*)` })
         .from(leads)
-        .where(eq(leads.isDemo, true));
+        .where(and(eq(leads.tenantId, tenantId), eq(leads.isDemo, true)));
       const hasDemoLeads = Number(demoRow?.count ?? 0) > 0;
 
       return {
